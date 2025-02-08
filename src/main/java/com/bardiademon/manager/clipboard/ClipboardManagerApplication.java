@@ -5,7 +5,7 @@ import com.bardiademon.manager.clipboard.controller.DataSourceProvider;
 import com.bardiademon.manager.clipboard.data.mapper.ConfigMapper;
 import com.bardiademon.manager.clipboard.data.model.ConfigModel;
 import com.bardiademon.manager.clipboard.view.MainFrame;
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.themes.FlatMacDarkLaf;
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
@@ -24,7 +24,7 @@ public class ClipboardManagerApplication {
         System.out.println("bardiademon");
 
         try {
-            UIManager.setLookAndFeel(new FlatDarkLaf());
+            UIManager.setLookAndFeel(new FlatMacDarkLaf());
         } catch (Exception e) {
             e.printStackTrace(System.out);
             return;
@@ -57,7 +57,7 @@ public class ClipboardManagerApplication {
         GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
             @Override
             public void nativeKeyPressed(NativeKeyEvent e) {
-                if (e.getKeyCode() == NativeKeyEvent.VC_V && (e.getModifiers() & NativeKeyEvent.CTRL_MASK) != 0 && (e.getModifiers() & NativeKeyEvent.ALT_MASK) != 0) {
+                if (e.getKeyCode() == NativeKeyEvent.VC_C && (e.getModifiers() & NativeKeyEvent.CTRL_MASK) != 0 && (e.getModifiers() & NativeKeyEvent.SHIFT_MASK) != 0) {
                     MainFrame.update(true);
                 }
             }

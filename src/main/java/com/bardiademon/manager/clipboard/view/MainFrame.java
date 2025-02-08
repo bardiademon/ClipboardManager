@@ -105,7 +105,7 @@ public class MainFrame {
 
             list = new JList<>();
             list.setModel(defaultListModel);
-            list.setFont(defaultFont);
+            list.setFont(defaultFont.deriveFont(15F));
             list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
             JScrollPane scrollPane = new JScrollPane(list);

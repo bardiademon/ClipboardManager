@@ -63,6 +63,6 @@ public class ClipboardEntity {
 
     @Override
     public String toString() {
-        return data.substring(0, Math.min(data.length(), 50));
+        return type.equals(ClipboardType.STRING) ? data.substring(0, Math.min(data.length(), 50)) : type.name();
     }
 }
