@@ -6,7 +6,7 @@
 
     <groupId>com.bardiademon.manager.clipboard</groupId>
     <artifactId>ClipboardManager</artifactId>
-    <version>25831119</version>
+    <version>2583.11.19</version>
 
     <developers>
         <developer>
@@ -30,6 +30,20 @@
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.48.0.0</version>
         </dependency>
+
+        <!-- Dependency for HikariCP -->
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>5.0.1</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.bardiademon</groupId>
+            <artifactId>Jjson</artifactId>
+            <version>2583.06.29</version>
+        </dependency>
+
     </dependencies>
 
 </project>
