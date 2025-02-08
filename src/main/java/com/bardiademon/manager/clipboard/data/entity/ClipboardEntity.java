@@ -60,4 +60,9 @@ public class ClipboardEntity {
     public void setDeletedAt(LocalDateTime deletedAt) {
         this.deletedAt = deletedAt;
     }
+
+    @Override
+    public String toString() {
+        return data.substring(0, Math.min(data.length(), 50));
+    }
 }

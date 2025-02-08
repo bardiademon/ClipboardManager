@@ -17,4 +17,6 @@ public interface ClipboardRepository {
 
     void deleteClipboard(int limit);
 
+    void deleteAllClipboard();
+
 }

@@ -24,8 +24,8 @@ public class ClipboardMapper {
     public static ClipboardEntity toClipboardEntity(ResultSet resultSet) throws SQLException {
         ClipboardEntity clipboardEntity = new ClipboardEntity();
         clipboardEntity.setId(resultSet.getInt("id"));
-        clipboardEntity.setName(resultSet.getNString("name"));
-        clipboardEntity.setData(resultSet.getNString("data"));
+        clipboardEntity.setName(resultSet.getString("name"));
+        clipboardEntity.setData(resultSet.getString("data"));
         clipboardEntity.setType(ClipboardType.valueOf(resultSet.getString("type")));
         clipboardEntity.setCreatedAt(Mapper.toLocalDateTime("created_at", resultSet));
         return clipboardEntity;

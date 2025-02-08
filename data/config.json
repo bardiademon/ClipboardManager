@@ -2,5 +2,5 @@
   "clipboard_types": [
 	"FILE", "STRING", "IMAGE"
   ],
-  "clipboard_save_count": 1
+  "clipboard_save_count": 100
 }

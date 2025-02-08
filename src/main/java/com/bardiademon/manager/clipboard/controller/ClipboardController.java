@@ -6,6 +6,7 @@ import com.bardiademon.manager.clipboard.data.enums.ClipboardType;
 import com.bardiademon.manager.clipboard.listener.OnClipboardListener;
 import com.bardiademon.manager.clipboard.manager.ClipboardManager;
 import com.bardiademon.manager.clipboard.service.ClipboardService;
+import com.bardiademon.manager.clipboard.view.MainFrame;
 
 import java.io.File;
 import java.util.List;
@@ -20,7 +21,6 @@ public class ClipboardController implements OnClipboardListener {
     @Override
     public void onString(String data) {
         System.out.println("OnString Clipboard: " + data);
-        removeLastClipboard();
         ClipboardService.repository().saveClipboard(null, data, ClipboardType.STRING);
         System.gc();
     }
@@ -28,7 +28,6 @@ public class ClipboardController implements OnClipboardListener {
     @Override
     public void onImage(File image) {
         System.out.println("onImage");
-        removeLastClipboard();
         ClipboardService.repository().saveClipboard(null, image.getAbsolutePath(), ClipboardType.IMAGE);
         System.gc();
     }
@@ -36,10 +35,15 @@ public class ClipboardController implements OnClipboardListener {
     @Override
     public void onFile(List<File> files) {
         System.out.println("onFile Clipboard: " + files);
-        removeLastClipboard();
         String data = JjsonArray.ofCollection(files.stream().map(File::getAbsoluteFile).toList()).encode();
         ClipboardService.repository().saveClipboard(null, data, ClipboardType.FILE);
         System.gc();
+    }
+
+    @Override
+    public void onData(ClipboardType clipboardType, Object data) {
+        removeLastClipboard();
+        MainFrame.update(false);
     }
 
     private void removeLastClipboard() {

@@ -68,6 +68,7 @@ public class ClipboardService implements ClipboardRepository {
                         strftime('%Y/%m/%d %H:%M:%S', "created_at") as "created_at"
                 from "clipboard"
                     limit ? offset ?
+                order by "id" desc
                 """;
 
         System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, JjsonArray.ofArray(new Object[]{start, end}), 2);
@@ -76,11 +77,6 @@ public class ClipboardService implements ClipboardRepository {
             preparedStatement.setInt(2, end);
 
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
-
-                if (resultSet.isBeforeFirst()) {
-                    System.out.printf("Not found clipboard, Start: %d , End: %d\n", start, end);
-                    return List.of();
-                }
 
                 List<ClipboardEntity> clipboardEntities = ClipboardMapper.toClipboardEntities(resultSet);
 
@@ -109,18 +105,14 @@ public class ClipboardService implements ClipboardRepository {
                         "type",
                         strftime('%Y/%m/%d %H:%M:%S', "created_at") as "created_at"
                 from "clipboard"
-                    limit ? offset ?
+                where "deleted_at" is null
+                order by "id" desc
                 """;
 
         System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, "null", 0);
-        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
+        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
 
             try (ResultSet resultSet = preparedStatement.executeQuery()) {
-
-                if (resultSet.isBeforeFirst()) {
-                    System.out.println("Not found clipboard");
-                    return List.of();
-                }
 
                 List<ClipboardEntity> clipboardEntities = ClipboardMapper.toClipboardEntities(resultSet);
 
@@ -171,7 +163,7 @@ public class ClipboardService implements ClipboardRepository {
         System.out.println("Starting deleteClipboard, Limit: " + limit);
 
         String query = """
-                delete from "clipboard" where "id" in (select "id" from "clipboard" order by "id" desc limit ?)
+                delete from "clipboard" where "id" in (select "id" from "clipboard" order by "id" limit ?)
                 """;
 
         System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, "[" + limit + "]", 1);
@@ -193,6 +185,33 @@ public class ClipboardService implements ClipboardRepository {
             e.printStackTrace(System.out);
         }
 
+    }
+
+    @Override
+    public void deleteAllClipboard() {
+        System.out.println("Starting deleteAllClipboard");
+
+        String query = """
+                delete from "clipboard"
+                """;
+
+        System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, "null", 1);
+        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+
+            int updated = preparedStatement.executeUpdate();
+
+            if (updated <= 0) {
+                System.out.println("Failed to delete clipboard");
+                throw new SQLException("Failed to delete clipboard");
+            }
+
+            System.out.println("Successfully delete clipboard");
+
+
+        } catch (SQLException e) {
+            System.out.println("Failed to delete clipboard, Exception: " + e.getMessage());
+            e.printStackTrace(System.out);
+        }
     }
 
 }

@@ -59,6 +59,7 @@ public final class ClipboardManager {
                         if (!data.equals(lastStringData.get())) {
                             lastStringData.set(data);
                             onClipboardListener.onString(data);
+                            onClipboardListener.onData(ClipboardType.STRING, data);
                         }
                     } else if (contents.isDataFlavorSupported(DataFlavor.imageFlavor) && getConfig().clipboardTypes().contains(ClipboardType.IMAGE)) {
                         Image data = (Image) contents.getTransferData(DataFlavor.imageFlavor);
@@ -66,6 +67,7 @@ public final class ClipboardManager {
                         File imagePath = writeImage(data);
                         if (imagePath != null) {
                             onClipboardListener.onImage(imagePath);
+                            onClipboardListener.onData(ClipboardType.IMAGE, data);
                         }
                     } else if (contents.isDataFlavorSupported(DataFlavor.javaFileListFlavor) && getConfig().clipboardTypes().contains(ClipboardType.FILE)) {
                         List<File> data = (List<File>) contents.getTransferData(DataFlavor.javaFileListFlavor);
@@ -73,6 +75,7 @@ public final class ClipboardManager {
                         if (!stringData.equals(lastFileData.get())) {
                             lastFileData.set(stringData);
                             onClipboardListener.onFile(data);
+                            onClipboardListener.onData(ClipboardType.FILE, data);
                         }
                     }
                 }
