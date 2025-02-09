@@ -66,7 +66,7 @@ public class ClipboardManagerApplication {
         GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
             @Override
             public void nativeKeyPressed(NativeKeyEvent e) {
-                if (e.getKeyCode() == NativeKeyEvent.VC_C && (e.getModifiers() & NativeKeyEvent.CTRL_MASK) != 0 && (e.getModifiers() & NativeKeyEvent.SHIFT_MASK) != 0) {
+                if (e.getKeyCode() == NativeKeyEvent.VC_X && (e.getModifiers() & NativeKeyEvent.CTRL_MASK) != 0 && (e.getModifiers() & NativeKeyEvent.SHIFT_MASK) != 0) {
                     MainFrame.update(true);
                 }
             }
