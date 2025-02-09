@@ -6,6 +6,8 @@ import com.bardiademon.manager.clipboard.data.enums.ClipboardType;
 import com.bardiademon.manager.clipboard.data.model.ConfigModel;
 import com.bardiademon.manager.clipboard.util.Paths;
 
+import java.io.IOException;
+
 public class ConfigMapper {
 
     private static final String DEFAULT_CONFIG = """
@@ -30,8 +32,11 @@ public class ConfigMapper {
             e.printStackTrace(System.out);
             try {
                 joConfig = JjsonObject.ofString(DEFAULT_CONFIG);
+
+                joConfig.write(Paths.CONFIG_PATH, false, true);
+
                 System.out.println("JoConfig: " + joConfig);
-            } catch (JjsonException ex) {
+            } catch (JjsonException | IOException ex) {
                 throw new RuntimeException(ex);
             }
         }

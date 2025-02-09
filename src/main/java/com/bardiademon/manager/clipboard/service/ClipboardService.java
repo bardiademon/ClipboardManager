@@ -188,6 +188,34 @@ public class ClipboardService implements ClipboardRepository {
     }
 
     @Override
+    public void deleteClipboardById(int id) {
+        System.out.println("Starting deleteClipboard, Id: " + id);
+
+        String query = """
+                delete from "clipboard" where "id" = ?
+                """;
+
+        System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, "[" + id + "]", 1);
+        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setInt(1, id);
+
+            int updated = preparedStatement.executeUpdate();
+
+            if (updated <= 0) {
+                System.out.println("Failed to delete clipboard, Id: " + id);
+                throw new SQLException("Failed to delete clipboard");
+            }
+
+            System.out.println("Successfully delete clipboard, Id: " + id);
+
+
+        } catch (SQLException e) {
+            System.out.println("Failed to delete clipboard, Exception: " + e.getMessage());
+            e.printStackTrace(System.out);
+        }
+    }
+
+    @Override
     public void deleteAllClipboard() {
         System.out.println("Starting deleteAllClipboard");
 

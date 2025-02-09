@@ -4,6 +4,7 @@ import com.bardiademon.manager.clipboard.controller.ClipboardController;
 import com.bardiademon.manager.clipboard.controller.DataSourceProvider;
 import com.bardiademon.manager.clipboard.data.mapper.ConfigMapper;
 import com.bardiademon.manager.clipboard.data.model.ConfigModel;
+import com.bardiademon.manager.clipboard.util.Paths;
 import com.bardiademon.manager.clipboard.view.MainFrame;
 import com.formdev.flatlaf.themes.FlatMacDarkLaf;
 import com.github.kwhat.jnativehook.GlobalScreen;
@@ -11,6 +12,9 @@ import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 
 import javax.swing.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -20,8 +24,13 @@ public class ClipboardManagerApplication {
 
     private static ConfigModel config;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws FileNotFoundException {
         System.out.println("bardiademon");
+
+        File dbDataPath = new File(Paths.DATA_PATH);
+        if (!dbDataPath.exists() && !dbDataPath.mkdirs()) {
+            throw new FileNotFoundException(dbDataPath.getAbsolutePath());
+        }
 
         try {
             UIManager.setLookAndFeel(new FlatMacDarkLaf());
@@ -72,4 +81,9 @@ public class ClipboardManagerApplication {
             }
         });
     }
+
+    public static InputStream getResource(String path) {
+        return ClipboardManagerApplication.class.getResourceAsStream(path);
+    }
+
 }

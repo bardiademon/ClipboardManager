@@ -1,18 +1,19 @@
 package com.bardiademon.manager.clipboard.manager;
 
 import com.bardiademon.Jjson.array.JjsonArray;
+import com.bardiademon.Jjson.exception.JjsonException;
+import com.bardiademon.manager.clipboard.data.entity.ClipboardEntity;
 import com.bardiademon.manager.clipboard.data.enums.ClipboardType;
 import com.bardiademon.manager.clipboard.listener.OnClipboardListener;
 import com.bardiademon.manager.clipboard.util.Paths;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
-import java.awt.datatransfer.Clipboard;
-import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Base64;
 import java.util.List;
@@ -44,6 +45,13 @@ public final class ClipboardManager {
     public static ClipboardManager manager(OnClipboardListener onClipboardListener) {
         if (CLIPBOARD_MANAGER == null) {
             CLIPBOARD_MANAGER = new ClipboardManager(onClipboardListener);
+        }
+        return CLIPBOARD_MANAGER;
+    }
+
+    public static ClipboardManager manager() {
+        if (CLIPBOARD_MANAGER == null) {
+            return null;
         }
         return CLIPBOARD_MANAGER;
     }
@@ -114,6 +122,65 @@ public final class ClipboardManager {
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    public void setClipboard(ClipboardEntity clipboardEntity) {
+        new Thread(() -> {
+            try {
+                Clipboard systemClipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+
+                switch (clipboardEntity.getType()) {
+                    case STRING -> systemClipboard.setContents(new StringSelection(clipboardEntity.getData()), null);
+                    case FILE -> systemClipboard.setContents(new Transferable() {
+                        @Override
+                        public DataFlavor[] getTransferDataFlavors() {
+                            return new DataFlavor[]{DataFlavor.javaFileListFlavor};
+                        }
+
+                        @Override
+                        public boolean isDataFlavorSupported(DataFlavor flavor) {
+                            return flavor.equals(DataFlavor.javaFileListFlavor);
+                        }
+
+                        @Override
+                        public Object getTransferData(DataFlavor flavor) {
+                            try {
+                                return JjsonArray.ofString(clipboardEntity.getData()).stream().map(item -> new File((String) item)).toList();
+                            } catch (JjsonException e) {
+                                e.printStackTrace(System.out);
+                                return "";
+                            }
+                        }
+                    }, null);
+                    case IMAGE -> systemClipboard.setContents(new Transferable() {
+                        @Override
+                        public DataFlavor[] getTransferDataFlavors() {
+                            return new DataFlavor[]{DataFlavor.imageFlavor};
+                        }
+
+                        @Override
+                        public boolean isDataFlavorSupported(DataFlavor flavor) {
+                            return flavor.equals(DataFlavor.imageFlavor);
+                        }
+
+                        @Override
+                        public Object getTransferData(DataFlavor flavor) {
+                            try {
+                                return ImageIO.read(new File(clipboardEntity.getData()));
+                            } catch (IOException e) {
+                                e.printStackTrace(System.out);
+                                return "";
+                            }
+                        }
+                    }, null);
+                }
+            } catch (Exception e) {
+                e.printStackTrace(System.out);
+            }
+
+
+        }).start();
+
     }
 
 }

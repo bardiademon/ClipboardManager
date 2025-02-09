@@ -1,6 +1,8 @@
 {
   "clipboard_types": [
-	"FILE", "STRING", "IMAGE"
+    "FILE", 
+    "STRING", 
+    "IMAGE"
   ],
-  "clipboard_save_count": 100
+  "clipboard_save_count": 50
 }
