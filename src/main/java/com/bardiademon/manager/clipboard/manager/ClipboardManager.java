@@ -172,7 +172,22 @@ public final class ClipboardManager {
                 Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 
                 if (clipboardEntity == null) {
-                    clipboard.setContents(null, null);
+                    clipboard.setContents(new Transferable() {
+                        @Override
+                        public DataFlavor[] getTransferDataFlavors() {
+                            return new DataFlavor[0];
+                        }
+
+                        @Override
+                        public boolean isDataFlavorSupported(DataFlavor flavor) {
+                            return false;
+                        }
+
+                        @Override
+                        public Object getTransferData(DataFlavor flavor) throws UnsupportedFlavorException, IOException {
+                            return "";
+                        }
+                    }, null);
                     return null;
                 }
 

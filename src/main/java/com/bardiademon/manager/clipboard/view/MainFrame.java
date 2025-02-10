@@ -207,7 +207,7 @@ public class MainFrame {
             String text = """
                     <html>
                         <body>
-                            <span style='font-family: ::FONTS::'>::TEXT::</span>
+                            <span style='font-family: ::FONTS::'><xmp>::TEXT::</xmp></span>
                         </body>
                     </html>
                     """
