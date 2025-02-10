@@ -1,6 +1,7 @@
 package com.bardiademon.manager.clipboard.listener;
 
 import com.bardiademon.manager.clipboard.data.enums.ClipboardType;
+import io.vertx.core.Future;
 
 import java.io.File;
 import java.util.List;
@@ -12,5 +13,5 @@ public interface OnClipboardListener {
 
     void onFile(List<File> files);
 
-    void onData(ClipboardType clipboardType, Object data);
+    Future<Void> onData(ClipboardType clipboardType, Object data);
 }

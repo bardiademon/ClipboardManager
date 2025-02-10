@@ -1,19 +1,22 @@
 package com.bardiademon.manager.clipboard.service;
 
-import com.bardiademon.Jjson.array.JjsonArray;
-import com.bardiademon.manager.clipboard.controller.DataSourceProvider;
 import com.bardiademon.manager.clipboard.data.entity.ClipboardEntity;
 import com.bardiademon.manager.clipboard.data.enums.ClipboardType;
 import com.bardiademon.manager.clipboard.data.mapper.ClipboardMapper;
 import com.bardiademon.manager.clipboard.data.repository.ClipboardRepository;
+import io.vertx.core.Future;
+import io.vertx.core.Promise;
+import io.vertx.core.json.JsonArray;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
 
-public class ClipboardService implements ClipboardRepository {
+import static com.bardiademon.manager.clipboard.controller.DatabaseConnection.getConnection;
+
+public non-sealed class ClipboardService extends Service implements ClipboardRepository {
+
+    private final static Logger logger = LogManager.getLogger(ClipboardService.class);
 
     private static ClipboardRepository clipboardRepository;
 
@@ -28,36 +31,41 @@ public class ClipboardService implements ClipboardRepository {
     }
 
     @Override
-    public void saveClipboard(String name, String data, ClipboardType clipboardType) {
-        System.out.printf("Starting saveClipboard, Name: %s , Data: %s , Type: %s\n", name, data, clipboardType);
+    public Future<Void> saveClipboard(String name, String data, ClipboardType clipboardType) {
+        logger.trace("Starting saveClipboard, Name: {} , Data: {} , Type: {}", name, data, clipboardType);
+
+        Promise<Void> promise = Promise.promise();
 
         String query = """
                 insert into "clipboard" ("name", "data", "type") values (?, ?, ?)
                 """;
 
-        System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, JjsonArray.ofArray(new Object[]{name, data, clipboardType.name()}), 3);
-        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setString(1, name);
-            preparedStatement.setString(2, data);
-            preparedStatement.setString(3, clipboardType.name());
-            int updated = preparedStatement.executeUpdate();
+        JsonArray params = new JsonArray()
+                .add(name)
+                .add(data)
+                .add(clipboardType.name());
 
-            if (updated <= 0) {
-                System.out.printf("Failed to save clipboard, Name: %s , Data: %s , Type: %s\n", name, data, clipboardType);
-                throw new SQLException("Failed to save clipboard");
+        logger.trace("Executing -> Query: {} , Params: {} , ParamsSize: {}", query, params, params.size());
+        getConnection().queryWithParams(query, params, resultHandler -> {
+            if (resultHandler.failed()) {
+                logger.error("Failed to save clipboard, Name: {} , Data: {} , Type: {}", name, data, clipboardType, resultHandler.cause());
+                promise.fail(resultHandler.cause());
+                return;
             }
 
-            System.out.printf("Successfully save clipboard, Name: %s , Data: %s , Type: %s\n", name, data, clipboardType);
+            logger.trace("Successfully save clipboard, Name: {} , Data: {} , Type: {}", name, data, clipboardType, resultHandler.cause());
 
-        } catch (SQLException e) {
-            System.out.printf("Failed to save clipboard, Name: %s , Data: %s , Type: %s , Exception: %s\n", name, data, clipboardType, e.getMessage());
-            e.printStackTrace(System.out);
-        }
+            promise.complete();
+        });
+
+        return promise.future();
     }
 
     @Override
-    public List<ClipboardEntity> fetchClipboards(int start, int end) {
-        System.out.printf("Starting saveClipboard, Start: %d , End: %d", start, end);
+    public Future<List<ClipboardEntity>> fetchClipboards(int start, int end) {
+        logger.trace("Starting saveClipboard, Start: {} , End: {}", start, end);
+
+        Promise<List<ClipboardEntity>> promise = Promise.promise();
 
         String query = """
                 select
@@ -67,36 +75,47 @@ public class ClipboardService implements ClipboardRepository {
                         "type",
                         strftime('%Y/%m/%d %H:%M:%S', "created_at") as "created_at"
                 from "clipboard"
+                where "deleted_at" is null
                     limit ? offset ?
                 order by "id" desc
                 """;
 
-        System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, JjsonArray.ofArray(new Object[]{start, end}), 2);
-        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query, ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)) {
-            preparedStatement.setInt(1, start);
-            preparedStatement.setInt(2, end);
+        JsonArray params = new JsonArray()
+                .add(start)
+                .add(end);
 
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-
-                List<ClipboardEntity> clipboardEntities = ClipboardMapper.toClipboardEntities(resultSet);
-
-                System.out.println("Successfully fetch clipboard, Clipboard: " + clipboardEntities);
-
-                return clipboardEntities;
+        logger.trace("Executing -> Query: {} , Params: {} , ParamsSize: {}", query, params, params.size());
+        getConnection().queryWithParams(query, params, resultHandler -> {
+            if (resultHandler.failed()) {
+                logger.error("Failed to fetch clipboards, Start: {} , End: {}", start, end, resultHandler.cause());
+                promise.fail(resultHandler.cause());
+                return;
             }
 
-        } catch (SQLException e) {
-            System.out.printf("Failed to fetch clipboard, Start: %d , End: %d , Exception: %s\n", start, end, e.getMessage());
-            e.printStackTrace(System.out);
-        }
+            if (isEmptyDaoSelect(resultHandler)) {
+                logger.error("Not found clipboards, Start: {} , End: {}", start, end);
+                promise.complete(List.of());
+                return;
+            }
 
-        return List.of();
+            List<ClipboardEntity> clipboardEntities = ClipboardMapper.toClipboardEntities(resultHandler.result().getRows());
+
+            logger.trace("Successfully fetch clipboard, Clipboard: {}", clipboardEntities);
+
+            promise.complete(clipboardEntities);
+
+        });
+
+        return promise.future();
     }
 
     @Override
-    public List<ClipboardEntity> fetchClipboards() {
-        System.out.println("Starting saveClipboard");
+    public Future<List<ClipboardEntity>> fetchClipboards() {
+        logger.trace("Starting fetchClipboards");
 
+        Promise<List<ClipboardEntity>> promise = Promise.promise();
+
+        logger.trace("Successfully connection");
         String query = """
                 select
                         "id",
@@ -109,137 +128,155 @@ public class ClipboardService implements ClipboardRepository {
                 order by "id" desc
                 """;
 
-        System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, "null", 0);
-        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
+        JsonArray params = new JsonArray();
 
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-
-                List<ClipboardEntity> clipboardEntities = ClipboardMapper.toClipboardEntities(resultSet);
-
-                System.out.println("Successfully fetch clipboard, Clipboard: " + clipboardEntities);
-
-                return clipboardEntities;
+        logger.trace("Executing -> Query: {} , Params: {} , ParamsSize: {}", query, params, params.size());
+        getConnection().queryWithParams(query, params, resultHandler -> {
+            if (resultHandler.failed()) {
+                logger.error("Failed to fetch clipboards", resultHandler.cause());
+                promise.fail(resultHandler.cause());
+                return;
             }
 
-        } catch (SQLException e) {
-            System.out.printf("Failed to fetch clipboard, Exception: %s\n", e.getMessage());
-            e.printStackTrace(System.out);
-        }
+            if (isEmptyDaoSelect(resultHandler)) {
+                logger.error("Not found clipboards");
+                promise.complete(List.of());
+                return;
+            }
 
-        return List.of();
+            List<ClipboardEntity> clipboardEntities = ClipboardMapper.toClipboardEntities(resultHandler.result().getRows());
+
+            logger.trace("Successfully fetch clipboard, Clipboard: {}", clipboardEntities);
+
+            promise.complete(clipboardEntities);
+
+        });
+
+        return promise.future();
     }
 
     @Override
-    public int fetchTotalClipboards() {
-        System.out.println("Starting fetchTotalClipboards");
+    public Future<Integer> fetchTotalClipboards() {
+        logger.trace("Starting fetchTotalClipboards");
+
+        Promise<Integer> promise = Promise.promise();
 
         String query = """
                 select count("id") as count from "clipboard"
                 """;
 
-        System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, "null", 0);
-        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+        JsonArray params = new JsonArray();
 
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-
-                if (!resultSet.next()) {
-                    System.out.println("Not found clipboard");
-                    return 0;
-                }
-
-                return resultSet.getInt("count");
+        logger.trace("Executing -> Query: {} , Params: {} , ParamsSize: {}", query, params, params.size());
+        getConnection().queryWithParams(query, params, resultHandler -> {
+            if (resultHandler.failed()) {
+                logger.error("Failed to fetch clipboards", resultHandler.cause());
+                promise.fail(resultHandler.cause());
+                return;
             }
 
-        } catch (SQLException e) {
-            System.out.printf("Failed to fetch clipboard, Exception: %s\n", e.getMessage());
-            e.printStackTrace(System.out);
-        }
+            if (isEmptyDaoSelect(resultHandler)) {
+                logger.error("Not found clipboards");
+                promise.complete(0);
+                return;
+            }
 
-        return 0;
+            int count = resultHandler.result().getRows().getFirst().getInteger("count", 0);
+
+            logger.trace("Successfully fetch clipboard, Count: {}", count);
+
+            promise.complete(count);
+
+        });
+
+        return promise.future();
     }
 
     @Override
-    public void deleteClipboard(int limit) {
-        System.out.println("Starting deleteClipboard, Limit: " + limit);
+    public Future<Void> deleteClipboard(int limit) {
+        logger.trace("Starting deleteClipboard, Limit: {}", limit);
+
+        Promise<Void> promise = Promise.promise();
 
         String query = """
                 delete from "clipboard" where "id" in (select "id" from "clipboard" order by "id" limit ?)
                 """;
 
-        System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, "[" + limit + "]", 1);
-        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setInt(1, limit);
+        JsonArray params = new JsonArray()
+                .add(limit);
 
-            int updated = preparedStatement.executeUpdate();
-
-            if (updated <= 0) {
-                System.out.println("Failed to delete clipboard, Limit: " + limit);
-                throw new SQLException("Failed to delete clipboard");
+        logger.trace("Executing -> Query: {} , Params: {} , ParamsSize: {}", query, params, params.size());
+        getConnection().queryWithParams(query, params, resultHandler -> {
+            if (resultHandler.failed()) {
+                logger.error("Failed to delete clipboard, Limit: {}", limit, resultHandler.cause());
+                promise.fail(resultHandler.cause());
+                return;
             }
 
-            System.out.println("Successfully delete clipboard, Limit: " + limit);
+            logger.trace("Successfully delete clipboard, Limit: {}", limit, resultHandler.cause());
 
+            promise.complete();
+        });
 
-        } catch (SQLException e) {
-            System.out.println("Failed to delete clipboard, Exception: " + e.getMessage());
-            e.printStackTrace(System.out);
-        }
+        return promise.future();
 
     }
 
     @Override
-    public void deleteClipboardById(int id) {
-        System.out.println("Starting deleteClipboard, Id: " + id);
+    public Future<Void> deleteClipboardById(int id) {
+        logger.trace("Starting deleteClipboardById, Id: {}", id);
+
+        Promise<Void> promise = Promise.promise();
 
         String query = """
                 delete from "clipboard" where "id" = ?
                 """;
 
-        System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, "[" + id + "]", 1);
-        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setInt(1, id);
+        JsonArray params = new JsonArray()
+                .add(id);
 
-            int updated = preparedStatement.executeUpdate();
-
-            if (updated <= 0) {
-                System.out.println("Failed to delete clipboard, Id: " + id);
-                throw new SQLException("Failed to delete clipboard");
+        logger.trace("Executing -> Query: {} , Params: {} , ParamsSize: {}", query, params, params.size());
+        getConnection().queryWithParams(query, params, resultHandler -> {
+            if (resultHandler.failed()) {
+                logger.error("Failed to delete clipboard, Id: {}", id, resultHandler.cause());
+                promise.fail(resultHandler.cause());
+                return;
             }
 
-            System.out.println("Successfully delete clipboard, Id: " + id);
+            logger.trace("Successfully delete clipboard, Id: {}", id, resultHandler.cause());
 
+            promise.complete();
+        });
 
-        } catch (SQLException e) {
-            System.out.println("Failed to delete clipboard, Exception: " + e.getMessage());
-            e.printStackTrace(System.out);
-        }
+        return promise.future();
     }
 
     @Override
-    public void deleteAllClipboard() {
-        System.out.println("Starting deleteAllClipboard");
+    public Future<Void> deleteAllClipboard() {
+        logger.trace("Starting deleteAllClipboard");
+
+        Promise<Void> promise = Promise.promise();
 
         String query = """
                 delete from "clipboard"
                 """;
 
-        System.out.printf("Executing -> Query: %s , Params: %s , ParamsSize: %s\n", query, "null", 1);
-        try (Connection connection = DataSourceProvider.getDataSource().getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+        JsonArray params = new JsonArray();
 
-            int updated = preparedStatement.executeUpdate();
-
-            if (updated <= 0) {
-                System.out.println("Failed to delete clipboard");
-                throw new SQLException("Failed to delete clipboard");
+        logger.trace("Executing -> Query: {} , Params: {} , ParamsSize: {}", query, params, params.size());
+        getConnection().queryWithParams(query, params, resultHandler -> {
+            if (resultHandler.failed()) {
+                logger.error("Failed to delete clipboard", resultHandler.cause());
+                promise.fail(resultHandler.cause());
+                return;
             }
 
-            System.out.println("Successfully delete clipboard");
+            logger.trace("Successfully delete clipboard", resultHandler.cause());
 
+            promise.complete();
+        });
 
-        } catch (SQLException e) {
-            System.out.println("Failed to delete clipboard, Exception: " + e.getMessage());
-            e.printStackTrace(System.out);
-        }
+        return promise.future();
     }
 
 }

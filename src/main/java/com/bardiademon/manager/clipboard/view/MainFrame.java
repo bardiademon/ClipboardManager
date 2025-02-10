@@ -5,6 +5,8 @@ import com.bardiademon.manager.clipboard.data.entity.ClipboardEntity;
 import com.bardiademon.manager.clipboard.manager.ClipboardManager;
 import com.bardiademon.manager.clipboard.service.ClipboardService;
 import com.bardiademon.manager.clipboard.util.Paths;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
 import java.awt.*;
@@ -13,14 +15,15 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.Objects;
 
 public class MainFrame {
+
+    private final static Logger logger = LogManager.getLogger(MainFrame.class);
 
     private static Font persianFont, englishFont;
 
     public static boolean isRunning = false;
-    public static boolean isClearAll = false;
+    public static boolean isDelete = false;
 
     private static DefaultListModel<ClipboardEntity> defaultListModel;
     private static JList<ClipboardEntity> list;
@@ -35,22 +38,35 @@ public class MainFrame {
     }
 
     public static void update(boolean create) {
-        if (!isRunning && !create) {
-            return;
-        }
-        List<ClipboardEntity> clipboardEntities = ClipboardService.repository().fetchClipboards();
-        defaultListModel = new DefaultListModel<>();
-        if (clipboardEntities != null) {
-            defaultListModel.addAll(clipboardEntities);
-        }
-        if (list != null) {
-            list.setModel(defaultListModel);
-            list.repaint();
-            list.revalidate();
-        }
-        if (create) {
-            create();
-        }
+        logger.trace("Starting main frame update, Create: {}", create);
+
+        ClipboardService.repository().fetchClipboards().onComplete(fetchClipboardsHandler -> {
+
+            if (fetchClipboardsHandler.failed()) {
+                logger.error("Failed fetch clipboard, Create: {}", create, fetchClipboardsHandler.cause());
+                return;
+            }
+
+            List<ClipboardEntity> clipboardEntities = fetchClipboardsHandler.result();
+
+            logger.trace("Successfully fetch clipboards, Create: {} , ClipboardEntities: {}", clipboardEntities, clipboardEntities);
+
+            defaultListModel = new DefaultListModel<>();
+            if (clipboardEntities != null) {
+                defaultListModel.addAll(clipboardEntities);
+            }
+            if (list != null) {
+                list.setModel(defaultListModel);
+                list.repaint();
+                list.revalidate();
+                list.setSelectedIndex(0);
+            }
+
+            if (!isRunning && create) {
+                create();
+            }
+        });
+
     }
 
     private static void create() {
@@ -81,42 +97,50 @@ public class MainFrame {
             headerPanel.setLayout(null);
 
             JLabel lblClipboard = new JLabel("Clipboard");
-            lblClipboard.setSize(100, 20);
+            lblClipboard.setSize(100, 25);
             lblClipboard.setFont(englishFont);
             lblClipboard.setBounds(10, 20, lblClipboard.getWidth(), lblClipboard.getHeight());
             headerPanel.add(lblClipboard);
 
             JButton btnClear = new JButton("Clear All");
             btnClear.addActionListener(e -> {
-
-                if (isClearAll) {
+                if (isDelete) {
                     return;
                 }
-
-                isClearAll = true;
-                new Thread(() -> {
-                    ClipboardService.repository().deleteAllClipboard();
+                isDelete = true;
+                ClipboardService.repository().deleteAllClipboard().onComplete(deleteAllHandler -> {
+                    isDelete = false;
+                    if (deleteAllHandler.failed()) {
+                        logger.error("Failed to delete all clipboards");
+                        return;
+                    }
+                    logger.trace("Successfully delete all clipboards");
                     update(false);
-                    isClearAll = false;
-                }).start();
-
+                });
             });
-            btnClear.setSize(90, 20);
+            btnClear.setSize(90, 25);
             btnClear.setFont(englishFont);
             btnClear.setBounds(240, 20, btnClear.getWidth(), btnClear.getHeight());
             headerPanel.add(btnClear);
             JButton btnRemove = new JButton("Remove");
             btnRemove.addActionListener(e -> {
-                if (clipboardSelected != null) {
-                    ClipboardService.repository().deleteClipboardById(clipboardSelected.getId());
-                    clipboardSelected = null;
-                    update(false);
-                    list.setSelectedIndex(0);
+                if (isDelete || clipboardSelected == null) {
+                    return;
                 }
+                isDelete = true;
+                ClipboardService.repository().deleteClipboardById(clipboardSelected.getId()).onComplete(deleteHandler -> {
+                    isDelete = false;
+                    if (deleteHandler.failed()) {
+                        logger.error("Failed to delete clipboard", deleteHandler.cause());
+                        return;
+                    }
+                    logger.trace("Successfully delete clipboard");
+                    update(false);
+                });
             });
             btnRemove.setSize(90, 20);
             btnRemove.setFont(englishFont);
-            btnRemove.setBounds(150, 20, btnClear.getWidth(), btnClear.getHeight());
+            btnRemove.setBounds(145, 20, btnClear.getWidth(), btnClear.getHeight());
             headerPanel.add(btnRemove);
 
             Panel mainPanel = new Panel();
@@ -127,6 +151,7 @@ public class MainFrame {
             list.setModel(defaultListModel);
             list.setFont(englishFont.deriveFont(18F));
             list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            list.setSelectedIndex(0);
             list.setCellRenderer(new ClipboardListItem());
 
             JScrollPane scrollPane = new JScrollPane(list);
@@ -163,8 +188,7 @@ public class MainFrame {
             GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(englishFont);
 
         } catch (FontFormatException | IOException e) {
-            System.out.println("Failed to create font, Exception: " + e.getMessage());
-            e.printStackTrace(System.out);
+            logger.error("Failed to create font", e);
         }
     }
 
@@ -209,7 +233,7 @@ public class MainFrame {
     }
 
     private static void setClipboard(ClipboardEntity clipboardEntity) {
-        Objects.requireNonNull(ClipboardManager.manager()).setClipboard(clipboardEntity);
+        ClipboardManager.setClipboard(clipboardEntity);
     }
 
 }

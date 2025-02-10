@@ -11,9 +11,9 @@ public final class Paths {
     public static final String CONFIG_PATH = DATA_PATH + File.separator + "config.json";
 
     public static final String DB_NAME = "clipboard_manager.sqlite3";
-    public static final String DB_PATH = DATA_PATH + File.separator + DB_NAME;
+    public static final String DB_PATH = new File(DATA_PATH + File.separator + DB_NAME).getAbsolutePath();
 
-    public static final String RESOURCE_PERSIAN_FONT = "/font/MjVanilla0.ttf";
+    public static final String RESOURCE_PERSIAN_FONT = "/font/IranianSans.ttf";
     public static final String RESOURCE_ENGLISH_FONT = "/font/NotoSansMedium.ttf";
 
     public static final String RESOURCE_INITIAL_SQL = "/patch/initial.sql";

@@ -6,7 +6,7 @@
 
     <groupId>com.bardiademon.manager.clipboard</groupId>
     <artifactId>ClipboardManager</artifactId>
-    <version>2583.11.19</version>
+    <version>2583.11.22</version>
 
     <developers>
         <developer>
@@ -22,41 +22,73 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <vertx.version>4.5.12</vertx.version>
+        <log4j.version>2.24.3</log4j.version>
+        <sqlite.version>3.49.0.0</sqlite.version>
+        <Jjson.version>2583.06.29</Jjson.version>
+        <flatlaf.version>3.5.4</flatlaf.version>
+        <jnativehook.version>2.2.2</jnativehook.version>
     </properties>
 
     <dependencies>
+
+        <!-- *************************************** -->
+        <!--  START -> VERTX    -->
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-core</artifactId>
+            <version>${vertx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-jdbc-client</artifactId>
+            <version>${vertx.version}</version>
+        </dependency>
+        <!-- END -> VERTX -->
+        <!-- *************************************** -->
+
+        <!-- *************************************** -->
+        <!-- START -> LOG4J -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j-impl</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+
+        <!-- END -> LOG4J -->
+        <!-- *************************************** -->
+
         <!-- https://mvnrepository.com/artifact/org.xerial/sqlite-jdbc -->
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
-            <version>3.48.0.0</version>
-        </dependency>
-
-        <!-- Dependency for HikariCP -->
-        <dependency>
-            <groupId>com.zaxxer</groupId>
-            <artifactId>HikariCP</artifactId>
-            <version>5.0.1</version>
+            <version>${sqlite.version}</version>
         </dependency>
 
         <dependency>
             <groupId>com.bardiademon</groupId>
             <artifactId>Jjson</artifactId>
-            <version>2583.06.29</version>
+            <version>${Jjson.version}</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.formdev/flatlaf -->
         <dependency>
             <groupId>com.formdev</groupId>
             <artifactId>flatlaf</artifactId>
-            <version>3.5.4</version>
+            <version>${flatlaf.version}</version>
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.github.kwhat/jnativehook -->
         <dependency>
             <groupId>com.github.kwhat</groupId>
             <artifactId>jnativehook</artifactId>
-            <version>2.2.2</version>
+            <version>${jnativehook.version}</version>
         </dependency>
 
     </dependencies>
@@ -88,6 +120,7 @@
                     <descriptorRefs>
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
+                    <appendAssemblyId>false</appendAssemblyId>
                     <finalName>${artifactId}-${version}</finalName>
                 </configuration>
                 <executions>

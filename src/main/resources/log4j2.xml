@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration monitorInterval="30">
+    <properties>
+        <property name="name">ium</property>
+        <property name="readablePattern">%highlight{%-5p %-20d{yyyy/MM/dd HH:mm:ss,SSS} %-35C{1}:%-4L -| %m%n}{FATAL=yellow, ERROR=red, WARN=Bright Red, INFO=white, DEBUG=green, TRACE=bright green}</property>
+    </properties>
+
+    <appenders>
+        <Console name="redirectToConsoleReadable" target="SYSTEM_OUT">
+            <PatternLayout pattern="${readablePattern}"/>
+        </Console>
+    </appenders>
+
+    <loggers>
+        <Logger name="com.bardiademon.manager.clipboard" level="TRACE" additivity="false">
+            <AppenderRef ref="redirectToConsoleReadable"/>
+        </Logger>
+
+        <Logger name="io.vertx" level="OFF" additivity="false"/>
+        <Logger name="org.apache" level="OFF" additivity="false"/>
+        <Logger name="com" level="OFF" additivity="false"/>
+
+        <Root level="OFF">
+            <AppenderRef ref="redirectToConsoleReadable"/>
+        </Root>
+    </loggers>
+</configuration>

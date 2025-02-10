@@ -2,9 +2,8 @@ package com.bardiademon.manager.clipboard.data.mapper;
 
 import com.bardiademon.manager.clipboard.data.entity.ClipboardEntity;
 import com.bardiademon.manager.clipboard.data.enums.ClipboardType;
+import io.vertx.core.json.JsonObject;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,21 +12,23 @@ public class ClipboardMapper {
     private ClipboardMapper() {
     }
 
-    public static List<ClipboardEntity> toClipboardEntities(ResultSet resultSet) throws SQLException {
+    public static List<ClipboardEntity> toClipboardEntities(List<JsonObject> rows) {
         List<ClipboardEntity> clipboardEntities = new ArrayList<>();
 
-        while (resultSet.next()) clipboardEntities.add(toClipboardEntity(resultSet));
+        for (JsonObject row : rows) {
+            clipboardEntities.add(toClipboardEntity(row));
+        }
 
         return clipboardEntities;
     }
 
-    public static ClipboardEntity toClipboardEntity(ResultSet resultSet) throws SQLException {
+    public static ClipboardEntity toClipboardEntity(JsonObject row) {
         ClipboardEntity clipboardEntity = new ClipboardEntity();
-        clipboardEntity.setId(resultSet.getInt("id"));
-        clipboardEntity.setName(resultSet.getString("name"));
-        clipboardEntity.setData(resultSet.getString("data"));
-        clipboardEntity.setType(ClipboardType.valueOf(resultSet.getString("type")));
-        clipboardEntity.setCreatedAt(Mapper.toLocalDateTime("created_at", resultSet));
+        clipboardEntity.setId(row.getInteger("id"));
+        clipboardEntity.setName(row.getString("name"));
+        clipboardEntity.setData(row.getString("data"));
+        clipboardEntity.setType(ClipboardType.valueOf(row.getString("type")));
+        clipboardEntity.setCreatedAt(Mapper.toLocalDateTime("created_at", row));
         return clipboardEntity;
     }
 

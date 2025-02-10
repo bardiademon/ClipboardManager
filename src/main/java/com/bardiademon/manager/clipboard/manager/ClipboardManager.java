@@ -1,11 +1,15 @@
 package com.bardiademon.manager.clipboard.manager;
 
 import com.bardiademon.Jjson.array.JjsonArray;
+import com.bardiademon.Jjson.data.model.JjsonString;
 import com.bardiademon.Jjson.exception.JjsonException;
+import com.bardiademon.manager.clipboard.ClipboardManagerApplication;
 import com.bardiademon.manager.clipboard.data.entity.ClipboardEntity;
 import com.bardiademon.manager.clipboard.data.enums.ClipboardType;
 import com.bardiademon.manager.clipboard.listener.OnClipboardListener;
 import com.bardiademon.manager.clipboard.util.Paths;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -27,6 +31,8 @@ import static com.bardiademon.manager.clipboard.ClipboardManagerApplication.getC
 
 public final class ClipboardManager {
 
+    private final static Logger logger = LogManager.getLogger(ClipboardManager.class);
+
     private final AtomicReference<String> lastFileData = new AtomicReference<>("");
     private final AtomicReference<String> lastStringData = new AtomicReference<>("");
     private final AtomicReference<String> lastImageData = new AtomicReference<>("");
@@ -36,6 +42,8 @@ public final class ClipboardManager {
     private final ScheduledExecutorService clipboardListenerExecutor = Executors.newSingleThreadScheduledExecutor();
 
     private final OnClipboardListener onClipboardListener;
+
+    private static final Clipboard CLIPBOARD = Toolkit.getDefaultToolkit().getSystemClipboard();
 
     private ClipboardManager(OnClipboardListener onClipboardListener) {
         this.onClipboardListener = onClipboardListener;
@@ -49,47 +57,79 @@ public final class ClipboardManager {
         return CLIPBOARD_MANAGER;
     }
 
-    public static ClipboardManager manager() {
-        if (CLIPBOARD_MANAGER == null) {
-            return null;
-        }
-        return CLIPBOARD_MANAGER;
-    }
-
     private void listener() {
+        CLIPBOARD.addFlavorListener(e -> {
+            Transferable contents = CLIPBOARD.getContents(null);
+            if (contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+                lastFileData.set("");
+                lastImageData.set("");
+            } else if (contents.isDataFlavorSupported(DataFlavor.imageFlavor)) {
+                lastFileData.set("");
+                lastStringData.set("");
+            } else if (contents.isDataFlavorSupported(DataFlavor.javaFileListFlavor)) {
+                lastImageData.set("");
+                lastStringData.set("");
+            }
+            System.gc();
+        });
         clipboardListenerExecutor.scheduleAtFixedRate(() -> {
             try {
-                Clipboard systemClipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-                Transferable contents = systemClipboard.getContents(null);
+                Transferable contents = CLIPBOARD.getContents(null);
                 if (contents != null) {
                     if (contents.isDataFlavorSupported(DataFlavor.stringFlavor) && getConfig().clipboardTypes().contains(ClipboardType.STRING)) {
                         String data = (String) contents.getTransferData(DataFlavor.stringFlavor);
                         if (!data.equals(lastStringData.get())) {
                             lastStringData.set(data);
-                            onClipboardListener.onString(data);
-                            onClipboardListener.onData(ClipboardType.STRING, data);
+                            onClipboardListener.onData(ClipboardType.STRING, data).onComplete(onDataHandler -> {
+                                if (onDataHandler.failed()) {
+                                    logger.error("Failed to on data, Data: {}", data, onDataHandler.cause());
+                                } else {
+                                    logger.trace("Successfully on data, Data: {}", data);
+                                }
+                                onClipboardListener.onString(data);
+                            });
                         }
                     } else if (contents.isDataFlavorSupported(DataFlavor.imageFlavor) && getConfig().clipboardTypes().contains(ClipboardType.IMAGE)) {
                         Image data = (Image) contents.getTransferData(DataFlavor.imageFlavor);
 
                         File imagePath = writeImage(data);
                         if (imagePath != null) {
-                            onClipboardListener.onImage(imagePath);
-                            onClipboardListener.onData(ClipboardType.IMAGE, data);
+                            onClipboardListener.onData(ClipboardType.IMAGE, data).onComplete(onDataHandler -> {
+                                if (onDataHandler.failed()) {
+                                    logger.error("Failed to on data, Data: {}", data, onDataHandler.cause());
+                                } else {
+                                    logger.trace("Successfully on data, Data: {}", data);
+                                }
+                                onClipboardListener.onImage(imagePath);
+                            });
                         }
                     } else if (contents.isDataFlavorSupported(DataFlavor.javaFileListFlavor) && getConfig().clipboardTypes().contains(ClipboardType.FILE)) {
-                        List<File> data = (List<File>) contents.getTransferData(DataFlavor.javaFileListFlavor);
-                        String stringData = JjsonArray.ofCollection(data.stream().map(File::getAbsolutePath).toList()).encode();
-                        if (!stringData.equals(lastFileData.get())) {
-                            lastFileData.set(stringData);
-                            onClipboardListener.onFile(data);
-                            onClipboardListener.onData(ClipboardType.FILE, data);
+                        Object transferData = contents.getTransferData(DataFlavor.javaFileListFlavor);
+                        if (transferData instanceof List<?> transferListData && !transferListData.isEmpty() && transferListData.getFirst() instanceof File) {
+                            @SuppressWarnings("unchecked")
+                            List<File> data = (List<File>) transferData;
+                            String stringData = JjsonArray.ofCollection(data.stream().map(File::getAbsolutePath).toList()).encode();
+                            if (!stringData.equals(lastFileData.get())) {
+                                lastFileData.set(stringData);
+                                onClipboardListener.onData(ClipboardType.FILE, data).onComplete(onDataHandler -> {
+                                    if (onDataHandler.failed()) {
+                                        logger.error("Failed to on data, Data: {}", data, onDataHandler.cause());
+                                    } else {
+                                        logger.trace("Successfully on data, Data: {}", data);
+                                    }
+                                    onClipboardListener.onFile(data);
+                                });
+                            }
                         }
+
                     }
                 }
             } catch (Exception e) {
-                System.out.println("Failed to handler clipboard, Exception: " + e.getMessage());
-                e.printStackTrace(System.out);
+                logger.error("Failed to handler clipboard", e);
+                lastStringData.set("");
+                lastImageData.set("");
+                lastFileData.set("");
+                setClipboard(null);
             }
         }, 0, 100, TimeUnit.MILLISECONDS);
     }
@@ -119,19 +159,26 @@ public final class ClipboardManager {
 
                 return imagesPath;
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            logger.error("Failed to write image", e);
         }
         return null;
     }
 
-    public void setClipboard(ClipboardEntity clipboardEntity) {
-        new Thread(() -> {
+    public static void setClipboard(ClipboardEntity clipboardEntity) {
+        ClipboardManagerApplication.vertx.executeBlocking(() -> {
+
             try {
-                Clipboard systemClipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+                Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+
+                if (clipboardEntity == null) {
+                    clipboard.setContents(null, null);
+                    return null;
+                }
 
                 switch (clipboardEntity.getType()) {
-                    case STRING -> systemClipboard.setContents(new StringSelection(clipboardEntity.getData()), null);
-                    case FILE -> systemClipboard.setContents(new Transferable() {
+                    case STRING -> clipboard.setContents(new StringSelection(clipboardEntity.getData()), null);
+                    case FILE -> clipboard.setContents(new Transferable() {
                         @Override
                         public DataFlavor[] getTransferDataFlavors() {
                             return new DataFlavor[]{DataFlavor.javaFileListFlavor};
@@ -145,14 +192,17 @@ public final class ClipboardManager {
                         @Override
                         public Object getTransferData(DataFlavor flavor) {
                             try {
-                                return JjsonArray.ofString(clipboardEntity.getData()).stream().map(item -> new File((String) item)).toList();
+                                return JjsonArray.ofString(clipboardEntity.getData()).stream()
+                                        .map(item -> (JjsonString) item)
+                                        .map(item -> new File(item.original()))
+                                        .toList();
                             } catch (JjsonException e) {
-                                e.printStackTrace(System.out);
+                                logger.error("Failed file handler", e);
                                 return "";
                             }
                         }
                     }, null);
-                    case IMAGE -> systemClipboard.setContents(new Transferable() {
+                    case IMAGE -> clipboard.setContents(new Transferable() {
                         @Override
                         public DataFlavor[] getTransferDataFlavors() {
                             return new DataFlavor[]{DataFlavor.imageFlavor};
@@ -168,19 +218,18 @@ public final class ClipboardManager {
                             try {
                                 return ImageIO.read(new File(clipboardEntity.getData()));
                             } catch (IOException e) {
-                                e.printStackTrace(System.out);
+                                logger.error("Failed read image", e);
                                 return "";
                             }
                         }
                     }, null);
                 }
             } catch (Exception e) {
-                e.printStackTrace(System.out);
+                logger.error("Failed handler clipboard", e);
             }
 
-
-        }).start();
-
+            return null;
+        });
     }
 
 }

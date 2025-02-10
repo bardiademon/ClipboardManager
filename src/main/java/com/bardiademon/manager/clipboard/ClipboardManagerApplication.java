@@ -1,7 +1,7 @@
 package com.bardiademon.manager.clipboard;
 
 import com.bardiademon.manager.clipboard.controller.ClipboardController;
-import com.bardiademon.manager.clipboard.controller.DataSourceProvider;
+import com.bardiademon.manager.clipboard.controller.DatabaseConnection;
 import com.bardiademon.manager.clipboard.data.mapper.ConfigMapper;
 import com.bardiademon.manager.clipboard.data.model.ConfigModel;
 import com.bardiademon.manager.clipboard.util.Paths;
@@ -10,27 +10,50 @@ import com.formdev.flatlaf.themes.FlatMacDarkLaf;
 import com.github.kwhat.jnativehook.GlobalScreen;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.swing.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-public class ClipboardManagerApplication {
+public class ClipboardManagerApplication extends AbstractVerticle {
 
-    private static final ExecutorService MAIN_EXECUTORS = Executors.newSingleThreadExecutor();
+    private final static Logger logger = LogManager.getLogger(ClipboardManagerApplication.class);
 
     private static ConfigModel config;
 
-    public static void main(String[] args) throws FileNotFoundException {
+    public static Vertx vertx;
+
+    public static void main(String[] args) {
         System.out.println("bardiademon");
+        vertx = Vertx.vertx();
+        vertx.deployVerticle(new ClipboardManagerApplication());
+    }
+
+    @Override
+    public void start(Promise<Void> startPromise) throws Exception {
 
         File dbDataPath = new File(Paths.DATA_PATH);
         if (!dbDataPath.exists() && !dbDataPath.mkdirs()) {
             throw new FileNotFoundException(dbDataPath.getAbsolutePath());
         }
+
+        logger.trace("Starting database connection");
+        DatabaseConnection.connect(vertx).onSuccess(successConnection -> {
+            logger.trace("Successfully connection, Config: {}", config);
+            new ClipboardController();
+            startPromise.complete();
+        }).onFailure(failedConnection -> {
+            logger.error("Failed to connection, Config: {}", config, failedConnection);
+            startPromise.fail(failedConnection);
+            vertx.close();
+            System.exit(-1);
+        });
 
         try {
             UIManager.setLookAndFeel(new FlatMacDarkLaf());
@@ -42,12 +65,7 @@ public class ClipboardManagerApplication {
         setOnKeyManager();
 
         config = ConfigMapper.getConfig();
-        System.out.println("Config: " + config);
-
-        DataSourceProvider.setDataSource();
-
-        MAIN_EXECUTORS.execute(ClipboardController::new);
-        Runtime.getRuntime().addShutdownHook(new Thread(MAIN_EXECUTORS::close));
+        logger.trace("Config: {}", config);
     }
 
     public static ConfigModel getConfig() {
@@ -58,8 +76,7 @@ public class ClipboardManagerApplication {
         try {
             GlobalScreen.registerNativeHook();
         } catch (Exception e) {
-            System.out.println("Error initializing GlobalScreen. Exception: " + e.getMessage());
-            e.printStackTrace(System.out);
+            logger.trace("Error initializing GlobalScreen", e);
             return;
         }
 

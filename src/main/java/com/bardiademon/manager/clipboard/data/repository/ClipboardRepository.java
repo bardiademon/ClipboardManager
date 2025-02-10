@@ -2,23 +2,24 @@ package com.bardiademon.manager.clipboard.data.repository;
 
 import com.bardiademon.manager.clipboard.data.entity.ClipboardEntity;
 import com.bardiademon.manager.clipboard.data.enums.ClipboardType;
+import io.vertx.core.Future;
 
 import java.util.List;
 
 public interface ClipboardRepository {
 
-    void saveClipboard(String name, String data, ClipboardType clipboardType);
+    Future<Void> saveClipboard(String name, String data, ClipboardType clipboardType);
 
-    List<ClipboardEntity> fetchClipboards(int start, int end);
+    Future<List<ClipboardEntity>> fetchClipboards(int start, int end);
 
-    List<ClipboardEntity> fetchClipboards();
+    Future<List<ClipboardEntity>> fetchClipboards();
 
-    int fetchTotalClipboards();
+    Future<Integer> fetchTotalClipboards();
 
-    void deleteClipboard(int limit);
+    Future<Void> deleteClipboard(int limit);
 
-    void deleteClipboardById(int id);
+    Future<Void> deleteClipboardById(int id);
 
-    void deleteAllClipboard();
+    Future<Void> deleteAllClipboard();
 
 }

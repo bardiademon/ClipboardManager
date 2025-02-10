@@ -1,5 +1,7 @@
 package com.bardiademon.manager.clipboard.data.entity;
 
+import com.bardiademon.Jjson.array.JjsonArray;
+import com.bardiademon.Jjson.exception.JjsonException;
 import com.bardiademon.manager.clipboard.data.enums.ClipboardType;
 
 import java.time.LocalDateTime;
@@ -63,6 +65,17 @@ public class ClipboardEntity {
 
     @Override
     public String toString() {
-        return type.equals(ClipboardType.STRING) ? data.substring(0, Math.min(data.length(), 50)) : type.name();
+        if (type.equals(ClipboardType.STRING)) {
+            return data.substring(0, Math.min(data.length(), 100));
+        } else if (type.equals(ClipboardType.FILE)) {
+            try {
+                return String.format("Clipboard: %d file(s)", JjsonArray.ofString(data).size());
+            } catch (JjsonException ignored) {
+                return "Clipboard: file(s)";
+            }
+        } else if (type.equals(ClipboardType.IMAGE)) {
+            return "Clipboard: Image";
+        }
+        return type.name();
     }
 }
