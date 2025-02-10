@@ -36,6 +36,11 @@ Run the packaged JAR file:
   java -jar target/JARNAME.jar
 ```
 
+Run Background on Windows
+```shell
+  javaw -jar target/JARNAME.jar
+```
+
 Note: The configuration file and SQLite database will be automatically created on the first run.
 
 Configuration

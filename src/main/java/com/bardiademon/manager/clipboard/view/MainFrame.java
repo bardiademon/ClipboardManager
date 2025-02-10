@@ -197,7 +197,7 @@ public class MainFrame {
         public ClipboardListItem() {
         }
 
-        private JPanel createItem(ClipboardEntity clipboardEntity, Dimension rootSize) {
+        private JPanel createItem(ClipboardEntity clipboardEntity, Dimension rootSize, boolean isSelected) {
             JPanel panel = new JPanel();
 
             panel.setLayout(new BorderLayout());
@@ -207,16 +207,20 @@ public class MainFrame {
             String text = """
                     <html>
                         <body>
-                            <span style='font-family: ::FONTS::'><xmp>::TEXT::</xmp></span>
+                            <div style='font-family: ::FONTS::;font-size:10px;white-space: pre;::UNDERLINE::;'>::TEXT::</div>
                         </body>
                     </html>
                     """
-                    .replace("::FONTS::", persianFont.getFamily())
-                    .replace("::TEXT::", clipboardEntity.toString());
+                    .replace("::FONTS::", String.format("\"%s\", \"%s\"", persianFont.getFamily(), englishFont.getFamily()))
+                    .replace("::TEXT::", clipboardEntity.toString()
+                            .replace("&", "&amp;")
+                            .replace("<", "&lt;")
+                            .replace(">", "&gt;"))
+                    .replace("::UNDERLINE::;", isSelected ? "text-decoration: underline;" : "");
+
+            logger.trace("Text: {}", text);
 
             JLabel lblClipboardData = new JLabel(text);
-            lblClipboardData.setFont(persianFont.deriveFont(15F));
-
             panel.add(lblClipboardData, BorderLayout.CENTER);
 
             return panel;
@@ -228,7 +232,7 @@ public class MainFrame {
                 clipboardSelected = value;
                 setClipboard(value);
             }
-            return createItem(value, list.getSize());
+            return createItem(value, list.getSize(), isSelected);
         }
     }
 
