@@ -13,7 +13,6 @@ A desktop application written in Java 21 for managing clipboard content. The app
 ## Requirements
 
 - Java 21 or higher
-- SQLite Database
 
 ## Installation
 
@@ -60,8 +59,9 @@ Delete entries (either one by one or all at once).
 Re-add older clipboard entries to your current clipboard.
 
 <h1 align="center">
-    Screenshots
-    <br/>
+    Screenshot
+</h1>
+<h1 align="center">
     <img src="screenshots/1.png" alt="screenshot">
 </h1>
 
