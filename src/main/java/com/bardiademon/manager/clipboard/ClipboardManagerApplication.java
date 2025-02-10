@@ -43,6 +43,18 @@ public class ClipboardManagerApplication extends AbstractVerticle {
             throw new FileNotFoundException(dbDataPath.getAbsolutePath());
         }
 
+        config = ConfigMapper.getConfig();
+        logger.trace("Config: {}", config);
+
+        try {
+            UIManager.setLookAndFeel(new FlatMacDarkLaf());
+        } catch (Exception e) {
+            e.printStackTrace(System.out);
+            return;
+        }
+
+        setOnKeyManager();
+
         logger.trace("Starting database connection");
         DatabaseConnection.connect(vertx).onSuccess(successConnection -> {
             logger.trace("Successfully connection, Config: {}", config);
@@ -54,18 +66,6 @@ public class ClipboardManagerApplication extends AbstractVerticle {
             vertx.close();
             System.exit(-1);
         });
-
-        try {
-            UIManager.setLookAndFeel(new FlatMacDarkLaf());
-        } catch (Exception e) {
-            e.printStackTrace(System.out);
-            return;
-        }
-
-        setOnKeyManager();
-
-        config = ConfigMapper.getConfig();
-        logger.trace("Config: {}", config);
     }
 
     public static ConfigModel getConfig() {
