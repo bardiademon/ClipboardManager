@@ -43,8 +43,6 @@ public final class ClipboardManager {
 
     private final OnClipboardListener onClipboardListener;
 
-    private static final Clipboard CLIPBOARD = Toolkit.getDefaultToolkit().getSystemClipboard();
-
     private ClipboardManager(OnClipboardListener onClipboardListener) {
         this.onClipboardListener = onClipboardListener;
         listener();
@@ -58,8 +56,8 @@ public final class ClipboardManager {
     }
 
     private void listener() {
-        CLIPBOARD.addFlavorListener(e -> {
-            Transferable contents = CLIPBOARD.getContents(null);
+        Toolkit.getDefaultToolkit().getSystemClipboard().addFlavorListener(e -> {
+            Transferable contents = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
             if (contents.isDataFlavorSupported(DataFlavor.stringFlavor)) {
                 lastFileData.set("");
                 lastImageData.set("");
@@ -74,7 +72,7 @@ public final class ClipboardManager {
         });
         clipboardListenerExecutor.scheduleAtFixedRate(() -> {
             try {
-                Transferable contents = CLIPBOARD.getContents(null);
+                Transferable contents = Toolkit.getDefaultToolkit().getSystemClipboard().getContents(null);
                 if (contents != null) {
                     if (contents.isDataFlavorSupported(DataFlavor.stringFlavor) && getConfig().clipboardTypes().contains(ClipboardType.STRING)) {
                         String data = (String) contents.getTransferData(DataFlavor.stringFlavor);
@@ -129,7 +127,7 @@ public final class ClipboardManager {
                 lastStringData.set("");
                 lastImageData.set("");
                 lastFileData.set("");
-                setClipboard(null);
+                System.gc();
             }
         }, 0, 100, TimeUnit.MILLISECONDS);
     }
