@@ -43,8 +43,13 @@ public class ClipboardManagerApplication extends AbstractVerticle {
             throw new FileNotFoundException(dbDataPath.getAbsolutePath());
         }
 
-        config = ConfigMapper.getConfig();
-        logger.trace("Config: {}", config);
+        try {
+            config = ConfigMapper.getConfig();
+            logger.trace("Config: {}", config);
+        } catch (Exception e) {
+            e.printStackTrace(System.err);
+            return;
+        }
 
         try {
             UIManager.setLookAndFeel(new FlatMacDarkLaf());
@@ -83,7 +88,18 @@ public class ClipboardManagerApplication extends AbstractVerticle {
         GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
             @Override
             public void nativeKeyPressed(NativeKeyEvent e) {
-                if (e.getKeyCode() == NativeKeyEvent.VC_X && (e.getModifiers() & NativeKeyEvent.CTRL_MASK) != 0 && (e.getModifiers() & NativeKeyEvent.SHIFT_MASK) != 0) {
+
+                int[] shortcuts = getConfig().uiShortcut();
+                int last = shortcuts[shortcuts.length - 1];
+
+                if (e.getKeyCode() == last) {
+                    if (shortcuts.length > 1) {
+                        for (int i = 0; i < shortcuts.length - 1; i++) {
+                            if ((e.getModifiers() & shortcuts[i]) == 0) {
+                                return;
+                            }
+                        }
+                    }
                     MainFrame.update(true);
                 }
             }

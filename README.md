@@ -6,7 +6,7 @@ A desktop application written in Java 21 for managing clipboard content. The app
 
 - **Clipboard Monitoring:** Continuously monitors and stores clipboard content (STRING, FILE, IMAGE) in an SQLite database.
 - **Configurable Storage Limit:** You can configure how many clipboard entries to store in the database. Older entries are automatically deleted when the limit is exceeded.
-- **Graphical Interface:** Press **Ctrl + Shift + X** to open a graphical interface to view, delete, or re-add clipboard entries.
+- **Graphical Interface:** Press the configured shortcut (e.g., **Ctrl + Alt + X** or **F5**) to open a graphical interface to view, delete, or re-add clipboard entries. By default, the shortcut is set to **F7**, but it can be customized in the **ui_shortcut** field of the configuration.
 - **Content Management:** Supports STRING, FILE, and IMAGE clipboard types.
 - **Single/Multiple Item Deletion:** You can delete individual clipboard entries or remove all items at once.
 
@@ -21,7 +21,11 @@ A desktop application written in Java 21 for managing clipboard content. The app
 1. Clone the repository:
 
 ```bash
-   git clone <repository-url>
+   git clone https://github.com/bardiademon/ClipboardManager
+```
+
+```bash
+   cd ClipboardManager
 ```
 
 Compile and package the application using Maven:
@@ -37,6 +41,7 @@ Run the packaged JAR file:
 ```
 
 Run Background on Windows
+
 ```shell
   javaw -jar target/JARNAME.jar
 ```
@@ -49,7 +54,7 @@ You can set the number of clipboard entries to store in the config file. The pro
 ```json
 {
   "clipboard_types": [
-	"FILE", "STRING", "IMAGE"
+    "FILE", "STRING", "IMAGE"
   ],
   "clipboard_save_count": 50
 }
