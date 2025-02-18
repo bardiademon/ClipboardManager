@@ -14,6 +14,13 @@ public final class ImageResizer {
         int newWidth = (int) (originalImage.getWidth() * scale);
         int newHeight = (int) (originalImage.getHeight() * scale);
 
+        if (newWidth <= 0) {
+            newWidth = targetWidth;
+        }
+        if (newWidth <= 0) {
+            newHeight = targetHeight;
+        }
+
         BufferedImage newImage = new BufferedImage(targetWidth, targetHeight, BufferedImage.SCALE_FAST);
         Graphics2D g2d = newImage.createGraphics();
 

@@ -40,11 +40,13 @@ public final class ClipboardManager implements ClipboardOwner {
 
     private boolean doingQueue = false;
 
-    private static final int DEFAULT_MONITOR_SLEEP = 100;
+    private static final int DEFAULT_TRY_AGAIN_MONITOR_SLEEP = 50;
+    private int counterErrorMonitorClipboard = 0;
+    private final static int MAX_TRY_AGAIN_ERROR_MONITOR_CLIPBOARD = 20;
 
     private ClipboardManager(OnClipboardListener onClipboardListener) {
         this.onClipboardListener = onClipboardListener;
-        monitorClipboard();
+        monitorClipboard(false);
     }
 
     public static ClipboardManager manager(OnClipboardListener onClipboardListener) {
@@ -54,29 +56,44 @@ public final class ClipboardManager implements ClipboardOwner {
         return CLIPBOARD_MANAGER;
     }
 
-    private void monitorClipboard() {
+    private void monitorClipboard(boolean error) {
         try {
             clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
             Transferable contents = clipboard.getContents(this);
             clipboard.setContents(contents, this);
+            if (error) {
+                tryAgainLostOwnershipAfterError(clipboard, contents);
+            }
         } catch (Exception e) {
             logger.error("Failed to set monitor clipboard", e);
-            try {
-                Thread.sleep(DEFAULT_MONITOR_SLEEP);
-            } catch (InterruptedException ex) {
-                throw new RuntimeException(ex);
-            }
-            monitorClipboard();
+            sleepFodTryMonitor();
         }
     }
 
+    private void sleepFodTryMonitor() {
+        try {
+            Thread.sleep(DEFAULT_TRY_AGAIN_MONITOR_SLEEP);
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
+        }
+        if (++counterErrorMonitorClipboard >= MAX_TRY_AGAIN_ERROR_MONITOR_CLIPBOARD) {
+            logger.error("Max retry limit reached. Stopping clipboard monitoring.");
+            counterErrorMonitorClipboard = 0;
+            return;
+        }
+        monitorClipboard(true);
+    }
+
+    private void tryAgainLostOwnershipAfterError(Clipboard clipboard, Transferable contents) {
+        lostOwnership(clipboard, contents);
+    }
 
     @Override
     public void lostOwnership(Clipboard clipboard, Transferable contents) {
         try {
-            Thread.sleep(DEFAULT_MONITOR_SLEEP);
             Transferable newContents = clipboard.getContents(this);
             if (newContents != null) {
+                counterErrorMonitorClipboard = 0;
                 if (newContents.isDataFlavorSupported(DataFlavor.stringFlavor) && getConfig().clipboardTypes().contains(ClipboardType.STRING)) {
                     String data = (String) newContents.getTransferData(DataFlavor.stringFlavor);
                     clipboardQueue.add(new ClipboardDataModel<>(data, ClipboardType.STRING));
@@ -95,7 +112,7 @@ public final class ClipboardManager implements ClipboardOwner {
         } catch (Exception e) {
             logger.error("Failed to handler clipboard", e);
             lastData.clear();
-            monitorClipboard();
+            sleepFodTryMonitor();
         }
     }
 
@@ -116,8 +133,6 @@ public final class ClipboardManager implements ClipboardOwner {
                 }
 
                 ImageIO.write(image, "png", imagesPath);
-
-                System.gc();
 
                 return imagesPath;
             }

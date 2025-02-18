@@ -241,7 +241,7 @@ public class MainFrame {
                         @Override
                         protected ImageIcon doInBackground() {
                             try {
-                                BufferedImage image = ImageResizer.resizeWithoutCrop(ImageIO.read(new FileInputStream(clipboardEntity.getData())), (int) rootSize.getWidth(), lblClipboardData.getHeight());
+                                BufferedImage image = ImageResizer.resizeWithoutCrop(ImageIO.read(new FileInputStream(clipboardEntity.getData())), (int) rootSize.getWidth(), (int) panel.getPreferredSize().getHeight());
                                 return new ImageIcon(image);
                             } catch (Exception e) {
                                 logger.error("Failed to load image file, ClipboardEntity: {}", clipboardEntity, e);
