@@ -1,14 +1,13 @@
 # 📋 Clipboard Manager
 
-<h1 align="center">
+<div>
     <img src="screenshots/1.png" alt="screenshot">
-</h1>
+    <img src="screenshots/2.png" alt="screenshot">
+</div>
 
 📝 A desktop application written in `Java 21` for managing clipboard content. The application listens to the clipboard, stores clipboard items in an SQLite database, and allows you to manage and organize clipboard entries based on content type `STRING`, `FILE`, `IMAGE`.
 
-# Clipboard Manager
-
-## Features
+## 🚀 Features
 
 - **Clipboard Monitoring:** Continuously monitors and stores clipboard content (STRING, FILE, IMAGE) in an SQLite database.
 - **Configurable Storage Limit:** You can configure how many clipboard entries to store in the database. Older entries are automatically deleted when the limit is exceeded.
@@ -16,7 +15,7 @@
 - **Content Management:** Supports **STRING**, **FILE**, and **IMAGE** clipboard types.
 - **Single/Multiple Item Deletion:** You can delete individual clipboard entries or remove all items at once.
 
-> **Note**:
+> 💡**Note**:
 > The configuration file and SQLite database will be automatically created on the first run.
 
 ## ⚙️ Configuration
@@ -47,7 +46,7 @@ You can set the number of clipboard entries to store in the config file. The pro
 }
 ```
 
-### Clipboard Types
+### 📋 Clipboard Types
 
 The clipboard manager supports the following clipboard types:
 
@@ -55,7 +54,7 @@ The clipboard manager supports the following clipboard types:
 - `FILE`
 - `IMAGE`
 
-### Shortcuts
+### ⌨️ Shortcuts
 
 All the shortcuts are customizable, and you can change them as per your preference in the settings. Here's a list of the available shortcuts:
 
@@ -68,7 +67,7 @@ All the shortcuts are customizable, and you can change them as per your preferen
 | Delete Last Data       | `Alt + F8`         |
 | Clear System Clipboard | `Ctrl + Alt + F9`  |
 
-### Themes
+### 🎨 Themes
 
 The clipboard manager supports multiple themes for the UI:
 
@@ -83,7 +82,7 @@ The clipboard manager supports multiple themes for the UI:
 
 You can configure the theme in the settings under the `theme` field. The default theme is `MAC_DARK`.
 
-### Storage Settings
+### 💾 Storage Settings
 
 The clipboard manager allows you to configure how frequently clipboard data is saved:
 
@@ -139,7 +138,7 @@ The clipboard manager allows you to configure how frequently clipboard data is s
 
 <hr/>
 
-## 🚀 Usage
+## 🛠️ Usage
 
 Run the application using the command above.
 The program will listen to the clipboard and store entries in the SQLite database.
@@ -156,7 +155,7 @@ By default, the shortcut is set to **F7**, but it can be customized in the **ui_
     <img src="https://user-images.githubusercontent.com/25181517/117201156-9a724800-adec-11eb-9a9d-3cd0f67da4bc.png" alt="Java"/>
 </div>
 
-## 🌟 Spread the word!
+## 📢 Spread the word!
 
 If you want to say thank you:
 
