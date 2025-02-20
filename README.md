@@ -1,7 +1,7 @@
 # 📋 Clipboard Manager
 
-![Image 1](screenshots/1.png)
-![Image 2](screenshots/2.png)
+<img src="screenshots/1.png" width="250" height="300" alt="Screenshot1">
+<img src="screenshots/2.png" width="250" height="300" alt="Screenshot2">
 
 📝 A desktop application written in `Java 21` for managing clipboard content. The application listens to the clipboard, stores clipboard items in an SQLite database, and allows you to manage and organize clipboard entries based on content type `STRING`, `FILE`, `IMAGE`.
 
