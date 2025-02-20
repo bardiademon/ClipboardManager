@@ -1,73 +1,30 @@
-package com.bardiademon.manager.clipboard.data.mapper;
+package com.bardiademon.manager.clipboard.data.mapper.config;
 
-import com.bardiademon.Jjson.exception.JjsonException;
-import com.bardiademon.Jjson.object.JjsonObject;
-import com.bardiademon.manager.clipboard.data.enums.ClipboardType;
-import com.bardiademon.manager.clipboard.data.model.ConfigModel;
-import com.bardiademon.manager.clipboard.util.Paths;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 
-import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.stream.Collectors;
 
-public class ConfigMapper {
+public final class ShortcutMapper {
 
-    private static final String DEFAULT_CONFIG = """
-            {
-              "ui_shortcut": "F7",
-              "clipboard_types": [
-            	"FILE", "STRING", "IMAGE"
-              ],
-              "clipboard_save_count": 50
-            }
-            """;
-
-    private ConfigMapper() {
+    public static String toString(int[] shortcut) {
+        return Arrays.stream(shortcut).mapToObj(ShortcutMapper::mapKeyCode).collect(Collectors.joining("+"));
     }
 
-    public static ConfigModel getConfig() {
-        JjsonObject joConfig;
-        try {
-            joConfig = JjsonObject.ofFile(Paths.CONFIG_PATH);
-            System.out.println("JoConfig: " + joConfig);
-        } catch (NullPointerException | JjsonException e) {
-            System.out.printf("Failed read config, Exception: %s\n", e.getMessage());
-            e.printStackTrace(System.out);
-            try {
-                joConfig = JjsonObject.ofString(DEFAULT_CONFIG);
+    public static int[] mapUiShortcut(String shortcut) {
+        String[] shortcuts = shortcut.split("\\+");
 
-                joConfig.write(Paths.CONFIG_PATH, false, true);
-
-                System.out.println("JoConfig: " + joConfig);
-            } catch (JjsonException | IOException ex) {
-                throw new RuntimeException(ex);
-            }
+        if (shortcuts.length == 0) {
+            throw new RuntimeException("Invalid shortcut, Shortcut: " + shortcut);
         }
 
-        try {
-            return new ConfigModel(
-                    mapUiShortcut(joConfig.getString("ui_shortcut")),
-                    joConfig.getJjsonArray("clipboard_types").stream().map(item -> ClipboardType.valueOf(item.toString())).toList(),
-                    joConfig.getInteger("clipboard_save_count")
-            );
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
-    private static int[] mapUiShortcut(String uiShortcut) {
-        String[] uiShortcuts = uiShortcut.split("\\+");
-
-        if (uiShortcuts.length == 0) {
-            throw new RuntimeException("Invalid ui shortcut, UiShortcut: " + uiShortcut);
+        int[] shortcutCodes = new int[shortcuts.length];
+        for (int i = 0; i < shortcuts.length; i++) {
+            shortcutCodes[i] = mapKeyEvent(shortcuts[i]);
         }
 
-        int[] uiShortcutCodes = new int[uiShortcuts.length];
-        for (int i = 0; i < uiShortcuts.length; i++) {
-            uiShortcutCodes[i] = mapKeyEvent(uiShortcuts[i]);
-        }
-
-        return uiShortcutCodes;
+        return shortcutCodes;
     }
 
     private static int mapKeyEvent(String text) {
@@ -77,6 +34,8 @@ public class ConfigMapper {
             case "alt" -> NativeKeyEvent.VC_ALT;
             case "enter" -> NativeKeyEvent.VC_ENTER;
             case "space" -> NativeKeyEvent.VC_SPACE;
+            case "delete" -> NativeKeyEvent.VC_DELETE;
+            case "escape" -> NativeKeyEvent.VC_ESCAPE;
             case "a" -> NativeKeyEvent.VC_A;
             case "b" -> NativeKeyEvent.VC_B;
             case "c" -> NativeKeyEvent.VC_C;
@@ -113,7 +72,6 @@ public class ConfigMapper {
             case "8" -> NativeKeyEvent.VC_8;
             case "9" -> NativeKeyEvent.VC_9;
             case "0" -> NativeKeyEvent.VC_0;
-            case "escape" -> NativeKeyEvent.VC_ESCAPE;
             case "f1" -> NativeKeyEvent.VC_F1;
             case "f2" -> NativeKeyEvent.VC_F2;
             case "f3" -> NativeKeyEvent.VC_F3;
@@ -137,6 +95,8 @@ public class ConfigMapper {
             case NativeKeyEvent.VC_ALT -> "Alt";
             case NativeKeyEvent.VC_ENTER -> "Enter";
             case NativeKeyEvent.VC_SPACE -> "Space";
+            case NativeKeyEvent.VC_DELETE -> "Delete";
+            case NativeKeyEvent.VC_ESCAPE -> "Escape";
             case NativeKeyEvent.VC_A -> "A";
             case NativeKeyEvent.VC_B -> "B";
             case NativeKeyEvent.VC_C -> "C";
@@ -173,7 +133,6 @@ public class ConfigMapper {
             case NativeKeyEvent.VC_8 -> "8";
             case NativeKeyEvent.VC_9 -> "9";
             case NativeKeyEvent.VC_0 -> "0";
-            case NativeKeyEvent.VC_ESCAPE -> "Escape";
             case NativeKeyEvent.VC_F1 -> "F1";
             case NativeKeyEvent.VC_F2 -> "F2";
             case NativeKeyEvent.VC_F3 -> "F3";

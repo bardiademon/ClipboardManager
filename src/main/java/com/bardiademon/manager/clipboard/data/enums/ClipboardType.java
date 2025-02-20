@@ -17,4 +17,9 @@ public enum ClipboardType {
     public DataFlavor getFlavor() {
         return flavor;
     }
+
+
+    public static ClipboardType[] getValues() {
+        return new ClipboardType[]{STRING, FILE, IMAGE};
+    }
 }

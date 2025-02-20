@@ -41,6 +41,8 @@ public class MainFrame {
     private static ClipboardEntity clipboardSelected = null;
     private final static Map<Integer, ImageIcon> clipboardImages = new HashMap<>();
 
+    private static JFrame frame;
+
     static {
         readFont();
     }
@@ -88,7 +90,7 @@ public class MainFrame {
         isRunning = true;
 
         SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("Clipboard Manager [bardiademon]");
+            frame = new JFrame("Clipboard Manager [bardiademon]");
             frame.setSize(400, 450);
             frame.setLocationRelativeTo(null);
             frame.setResizable(false);
@@ -99,6 +101,7 @@ public class MainFrame {
             frame.addWindowListener(new WindowAdapter() {
                 @Override
                 public void windowClosing(WindowEvent e) {
+                    logger.trace("windowClosing");
                     isRunning = false;
                 }
             });
@@ -180,6 +183,13 @@ public class MainFrame {
             frame.setVisible(true);
             System.gc();
         });
+    }
+
+    public static void dispose() {
+        if (isRunning) {
+            SwingUtilities.invokeLater(frame::dispose);
+            isRunning = false;
+        }
     }
 
     private static void readFont() {
@@ -302,7 +312,7 @@ public class MainFrame {
     }
 
     private static void setClipboard(ClipboardEntity clipboardEntity) {
-        ClipboardManager.setClipboard(clipboardEntity);
+        ClipboardManager.setClipboard(clipboardEntity, false);
     }
 
 }

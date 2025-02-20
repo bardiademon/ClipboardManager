@@ -4,6 +4,8 @@ target/
 !**/src/test/**/target/
 /data
 /data/**
+/images
+/images/**
 
 ### IntelliJ IDEA ###
 .idea/modules.xml

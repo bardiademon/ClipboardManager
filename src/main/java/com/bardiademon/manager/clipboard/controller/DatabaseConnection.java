@@ -70,7 +70,7 @@ public final class DatabaseConnection {
         jdbcClient.getConnection(resultHandler -> {
             if (resultHandler.succeeded()) {
                 logger.trace("Successfully connection database, Config: {}", config);
-                Runtime.getRuntime().addShutdownHook(new Thread(() -> resultHandler.result().close()));
+                resultHandler.result().close();
                 promise.complete();
             } else {
                 logger.error("Failed to connection database, Config: {}", config, resultHandler.cause());
@@ -79,6 +79,10 @@ public final class DatabaseConnection {
         });
 
         return promise.future();
+    }
+
+    public static void close() {
+        jdbcClient.close();
     }
 
     public static SQLClient getConnection() {

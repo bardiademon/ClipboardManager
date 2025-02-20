@@ -78,4 +78,13 @@ public class ClipboardEntity {
         }
         return type.name();
     }
+
+    public static ClipboardEntity emptyStringEntity() {
+        ClipboardEntity clipboardEntity = new ClipboardEntity();
+        clipboardEntity.setData("");
+        clipboardEntity.setCreatedAt(LocalDateTime.now());
+        clipboardEntity.setId(0);
+        clipboardEntity.setType(ClipboardType.STRING);
+        return clipboardEntity;
+    }
 }

@@ -2,12 +2,17 @@ package com.bardiademon.manager.clipboard;
 
 import com.bardiademon.manager.clipboard.controller.ClipboardController;
 import com.bardiademon.manager.clipboard.controller.DatabaseConnection;
-import com.bardiademon.manager.clipboard.data.mapper.ConfigMapper;
-import com.bardiademon.manager.clipboard.data.model.ConfigModel;
+import com.bardiademon.manager.clipboard.data.entity.ClipboardEntity;
+import com.bardiademon.manager.clipboard.data.enums.UILookAndFeelType;
+import com.bardiademon.manager.clipboard.data.mapper.config.ConfigMapper;
+import com.bardiademon.manager.clipboard.data.mapper.config.ShortcutMapper;
+import com.bardiademon.manager.clipboard.data.model.config.ConfigModel;
+import com.bardiademon.manager.clipboard.manager.ClipboardManager;
+import com.bardiademon.manager.clipboard.service.ClipboardService;
 import com.bardiademon.manager.clipboard.util.Paths;
 import com.bardiademon.manager.clipboard.view.MainFrame;
-import com.formdev.flatlaf.themes.FlatMacDarkLaf;
 import com.github.kwhat.jnativehook.GlobalScreen;
+import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import io.vertx.core.AbstractVerticle;
@@ -21,18 +26,26 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 
-public class ClipboardManagerApplication extends AbstractVerticle {
+public final class ClipboardManagerApplication extends AbstractVerticle implements NativeKeyListener {
 
     private final static Logger logger = LogManager.getLogger(ClipboardManagerApplication.class);
 
     private static ConfigModel config;
 
-    public static Vertx vertx;
+    private Vertx vertx;
+
+    private static ClipboardManagerApplication app;
 
     public static void main(String[] args) {
         System.out.println("bardiademon");
+        app = new ClipboardManagerApplication();
+        addShutdownHook("Clear App", app::clear);
+        app.runApp();
+    }
+
+    private void runApp() {
         vertx = Vertx.vertx();
-        vertx.deployVerticle(new ClipboardManagerApplication());
+        vertx.deployVerticle(this);
     }
 
     @Override
@@ -47,14 +60,14 @@ public class ClipboardManagerApplication extends AbstractVerticle {
             config = ConfigMapper.getConfig();
             logger.trace("Config: {}", config);
         } catch (Exception e) {
-            e.printStackTrace(System.err);
+            logger.error("Failed to load config", e);
             return;
         }
 
         try {
-            UIManager.setLookAndFeel(new FlatMacDarkLaf());
+            UIManager.setLookAndFeel(UILookAndFeelType.getLookAndFeel(config.theme()));
         } catch (Exception e) {
-            e.printStackTrace(System.out);
+            logger.error("Failed to set ui", e);
             return;
         }
 
@@ -77,46 +90,143 @@ public class ClipboardManagerApplication extends AbstractVerticle {
         return config;
     }
 
-    private static void setOnKeyManager() {
+    private void setOnKeyManager() {
+        logger.trace("Registering GlobalScreen...");
         try {
-            GlobalScreen.registerNativeHook();
+            if (!GlobalScreen.isNativeHookRegistered()) {
+                GlobalScreen.registerNativeHook();
+                addShutdownHook("Unregister native hook", () -> {
+                    try {
+                        GlobalScreen.unregisterNativeHook();
+                    } catch (NativeHookException e) {
+                        e.printStackTrace(System.err);
+                    }
+                });
+            }
+            GlobalScreen.addNativeKeyListener(this);
+            logger.trace("Successfully registered GlobalScreen");
         } catch (Exception e) {
             logger.trace("Error initializing GlobalScreen", e);
-            return;
         }
+    }
 
-        GlobalScreen.addNativeKeyListener(new NativeKeyListener() {
-            @Override
-            public void nativeKeyPressed(NativeKeyEvent e) {
-
-                int[] shortcuts = getConfig().uiShortcut();
-                int last = shortcuts[shortcuts.length - 1];
-
-                if (e.getKeyCode() == last) {
-                    if (shortcuts.length > 1) {
-                        for (int i = 0; i < shortcuts.length - 1; i++) {
-                            if ((e.getModifiers() & shortcuts[i]) == 0) {
-                                return;
-                            }
-                        }
+    private boolean checkPressShortcut(int pressKey, int modifiers, int[] shortcut) {
+        int last = shortcut[shortcut.length - 1];
+        if (pressKey == last) {
+            if (shortcut.length > 1) {
+                int i, len;
+                for (i = 0, len = shortcut.length - 1; i < len; i++) {
+                    if ((modifiers & shortcut[i]) == 0) {
+                        return false;
                     }
-                    MainFrame.update(true);
                 }
+                return i == len;
             }
-
-            @Override
-            public void nativeKeyReleased(NativeKeyEvent e) {
-            }
-
-            @Override
-            public void nativeKeyTyped(NativeKeyEvent e) {
-
-            }
-        });
+            return true;
+        }
+        return false;
     }
 
     public static InputStream getResource(String path) {
         return ClipboardManagerApplication.class.getResourceAsStream(path);
     }
 
+    private void closeApp() {
+        vertx.close();
+        System.exit(0);
+    }
+
+    private void clearAllClipboard() {
+        ClipboardService.repository().deleteAllClipboard().onComplete(deleteAllHandler -> {
+            if (deleteAllHandler.failed()) {
+                logger.error("Failed to delete all clipboards");
+                return;
+            }
+            logger.trace("Successfully delete all clipboards");
+            MainFrame.update(false);
+        });
+    }
+
+    private void restart() {
+        logger.trace("Restarting...");
+        clear();
+        GlobalScreen.removeNativeKeyListener(this);
+        app = new ClipboardManagerApplication();
+        app.runApp();
+    }
+
+    private void clear() {
+        MainFrame.dispose();
+        ClipboardManager.removeManager();
+        DatabaseConnection.close();
+        vertx.close();
+        System.gc();
+    }
+
+    @Override
+    public void nativeKeyPressed(NativeKeyEvent e) {
+
+        boolean isPress = checkPressShortcut(e.getKeyCode(), e.getModifiers(), getConfig().shortcuts().openUI());
+        if (isPress) {
+            logger.trace("Pressed: {}", ShortcutMapper.toString(getConfig().shortcuts().openUI()));
+            MainFrame.update(true);
+            return;
+        }
+
+        isPress = checkPressShortcut(e.getKeyCode(), e.getModifiers(), getConfig().shortcuts().closeApp());
+        if (isPress) {
+            logger.trace("Pressed: {}", ShortcutMapper.toString(getConfig().shortcuts().closeApp()));
+            closeApp();
+            return;
+        }
+
+        isPress = checkPressShortcut(e.getKeyCode(), e.getModifiers(), getConfig().shortcuts().clearAllClipboard());
+        if (isPress) {
+            logger.trace("Pressed: {}", ShortcutMapper.toString(getConfig().shortcuts().clearAllClipboard()));
+            clearAllClipboard();
+            return;
+        }
+
+        isPress = checkPressShortcut(e.getKeyCode(), e.getModifiers(), getConfig().shortcuts().deleteLastData());
+        if (isPress) {
+            logger.trace("Pressed: {}", ShortcutMapper.toString(getConfig().shortcuts().deleteLastData()));
+            ClipboardManager.manager().clearLastData();
+            return;
+        }
+
+        isPress = checkPressShortcut(e.getKeyCode(), e.getModifiers(), getConfig().shortcuts().clearSystemClipboard());
+        if (isPress) {
+            logger.trace("Pressed: {}", ShortcutMapper.toString(getConfig().shortcuts().clearSystemClipboard()));
+            ClipboardManager.setClipboard(ClipboardEntity.emptyStringEntity(), true);
+            return;
+        }
+
+        isPress = checkPressShortcut(e.getKeyCode(), e.getModifiers(), getConfig().shortcuts().restart());
+        if (isPress) {
+            logger.trace("Pressed: {}", ShortcutMapper.toString(getConfig().shortcuts().restart()));
+            restart();
+        }
+
+    }
+
+    @Override
+    public void nativeKeyReleased(NativeKeyEvent e) {
+    }
+
+    @Override
+    public void nativeKeyTyped(NativeKeyEvent e) {
+
+    }
+
+    public static ClipboardManagerApplication getApp() {
+        return app;
+    }
+
+    public static void addShutdownHook(String name, Runnable runnable) {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("Starting shutdown -> " + name);
+            runnable.run();
+            System.out.println("Successfully shutdown -> " + name);
+        }));
+    }
 }

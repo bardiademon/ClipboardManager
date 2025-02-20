@@ -14,39 +14,45 @@ import org.apache.logging.log4j.Logger;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
-import java.awt.datatransfer.*;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.StringSelection;
+import java.awt.datatransfer.Transferable;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
+import java.util.ArrayDeque;
 import java.util.List;
+import java.util.Queue;
+import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static com.bardiademon.manager.clipboard.ClipboardManagerApplication.getConfig;
 
-public final class ClipboardManager implements ClipboardOwner {
+public final class ClipboardManager {
 
     private static ClipboardManager CLIPBOARD_MANAGER;
 
     private final static Logger logger = LogManager.getLogger(ClipboardManager.class);
 
-    private static Clipboard clipboard;
+    private static final Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
 
     private final OnClipboardListener onClipboardListener;
     private final ClipboardDataModel<String> lastData = new ClipboardDataModel<>();
     private final Queue<ClipboardDataModel<Object>> clipboardQueue = new ArrayDeque<>();
 
-    private boolean doingQueue = false;
+    private final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
 
-    private static final int DEFAULT_TRY_AGAIN_MONITOR_SLEEP = 50;
-    private int counterErrorMonitorClipboard = 0;
-    private final static int MAX_TRY_AGAIN_ERROR_MONITOR_CLIPBOARD = 20;
+    private boolean doingQueue = false;
 
     private ClipboardManager(OnClipboardListener onClipboardListener) {
         this.onClipboardListener = onClipboardListener;
-        monitorClipboard(false);
+        setListener();
     }
 
     public static ClipboardManager manager(OnClipboardListener onClipboardListener) {
@@ -56,76 +62,72 @@ public final class ClipboardManager implements ClipboardOwner {
         return CLIPBOARD_MANAGER;
     }
 
-    private void monitorClipboard(boolean error) {
-        try {
-            clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-            Transferable contents = clipboard.getContents(this);
-            clipboard.setContents(contents, this);
-            if (error) {
-                tryAgainLostOwnershipAfterError(clipboard, contents);
-            }
-        } catch (Exception e) {
-            logger.error("Failed to set monitor clipboard", e);
-            sleepFodTryMonitor();
+    public static ClipboardManager manager() {
+        return CLIPBOARD_MANAGER;
+    }
+
+    public static void removeManager() {
+        if (CLIPBOARD_MANAGER != null) {
+            CLIPBOARD_MANAGER.executorService.close();
+            CLIPBOARD_MANAGER.clipboardQueue.clear();
+            CLIPBOARD_MANAGER.lastData.clear();
+            CLIPBOARD_MANAGER = null;
         }
     }
 
-    private void sleepFodTryMonitor() {
-        try {
-            Thread.sleep(DEFAULT_TRY_AGAIN_MONITOR_SLEEP);
-        } catch (InterruptedException ex) {
-            throw new RuntimeException(ex);
+    private void setListener() {
+        if (getConfig().clipboardTypes().contains(ClipboardType.STRING) || getConfig().clipboardTypes().contains(ClipboardType.FILE)) {
+            executorService.scheduleAtFixedRate(this::handlerClipboard, 0, getConfig().clipboardHandlerPeriod().clipboardHandlerMills(), TimeUnit.MILLISECONDS);
         }
-        if (++counterErrorMonitorClipboard >= MAX_TRY_AGAIN_ERROR_MONITOR_CLIPBOARD) {
-            logger.error("Max retry limit reached. Stopping clipboard monitoring.");
-            counterErrorMonitorClipboard = 0;
-            return;
+
+        if (getConfig().clipboardTypes().contains(ClipboardType.IMAGE)) {
+            executorService.scheduleAtFixedRate(this::handlerImageClipboard, 0, getConfig().clipboardHandlerPeriod().clipboardImageHandlerSec(), TimeUnit.SECONDS);
         }
-        monitorClipboard(true);
     }
 
-    private void tryAgainLostOwnershipAfterError(Clipboard clipboard, Transferable contents) {
-        lostOwnership(clipboard, contents);
-    }
-
-    @Override
-    public void lostOwnership(Clipboard clipboard, Transferable contents) {
+    public void handlerClipboard() {
         try {
-            Transferable newContents = clipboard.getContents(this);
+            Transferable newContents = clipboard.getContents(null);
             if (newContents != null) {
-                counterErrorMonitorClipboard = 0;
                 if (newContents.isDataFlavorSupported(DataFlavor.stringFlavor) && getConfig().clipboardTypes().contains(ClipboardType.STRING)) {
                     String data = (String) newContents.getTransferData(DataFlavor.stringFlavor);
                     clipboardQueue.add(new ClipboardDataModel<>(data, ClipboardType.STRING));
-                    doingQueue();
-                } else if (newContents.isDataFlavorSupported(DataFlavor.imageFlavor) && getConfig().clipboardTypes().contains(ClipboardType.IMAGE)) {
-                    BufferedImage data = (BufferedImage) newContents.getTransferData(DataFlavor.imageFlavor);
-                    clipboardQueue.add(new ClipboardDataModel<>(data, ClipboardType.IMAGE));
                     doingQueue();
                 } else if (newContents.isDataFlavorSupported(DataFlavor.javaFileListFlavor) && getConfig().clipboardTypes().contains(ClipboardType.FILE)) {
                     Object transferData = newContents.getTransferData(DataFlavor.javaFileListFlavor);
                     clipboardQueue.add(new ClipboardDataModel<>(transferData, ClipboardType.FILE));
                     doingQueue();
                 }
-                clipboard.setContents(newContents, this);
             }
         } catch (Exception e) {
             logger.error("Failed to handler clipboard", e);
             lastData.clear();
-            sleepFodTryMonitor();
+        }
+    }
+
+    public void handlerImageClipboard() {
+        try {
+            Transferable newContents = clipboard.getContents(null);
+            if (newContents != null) {
+                if (newContents.isDataFlavorSupported(DataFlavor.imageFlavor)) {
+                    BufferedImage data = (BufferedImage) newContents.getTransferData(DataFlavor.imageFlavor);
+                    clipboardQueue.add(new ClipboardDataModel<>(data, ClipboardType.IMAGE));
+                    doingQueue();
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to handler clipboard", e);
+            lastData.clear();
         }
     }
 
     private File writeImage(BufferedImage image) {
         try {
+
             File imagesPath = new File(Paths.IMAGES_PATH + UUID.randomUUID() + ".png");
             if (imagesPath.getParentFile().exists() || imagesPath.getParentFile().mkdirs()) {
 
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                ImageIO.write(image, "png", outputStream);
-                byte[] byteArray = outputStream.toByteArray();
-
-                String newImageHash = generateImageHash(byteArray);
+                String newImageHash = generateImageHash(image);
 
                 if (lastData.equalsIfNotDoSet(newImageHash, ClipboardType.IMAGE)) {
                     System.gc();
@@ -140,70 +142,6 @@ public final class ClipboardManager implements ClipboardOwner {
             logger.error("Failed to write image", e);
         }
         return null;
-    }
-
-    public static void setClipboard(ClipboardEntity clipboardEntity) {
-        ClipboardManagerApplication.vertx.executeBlocking(() -> {
-
-            try {
-                if (clipboardEntity == null) {
-                    return null;
-                }
-
-                switch (clipboardEntity.getType()) {
-                    case STRING -> clipboard.setContents(new StringSelection(clipboardEntity.getData()), null);
-                    case FILE -> clipboard.setContents(new Transferable() {
-                        @Override
-                        public DataFlavor[] getTransferDataFlavors() {
-                            return new DataFlavor[]{DataFlavor.javaFileListFlavor};
-                        }
-
-                        @Override
-                        public boolean isDataFlavorSupported(DataFlavor flavor) {
-                            return flavor.equals(DataFlavor.javaFileListFlavor);
-                        }
-
-                        @Override
-                        public Object getTransferData(DataFlavor flavor) {
-                            try {
-                                return JjsonArray.ofString(clipboardEntity.getData()).stream()
-                                        .map(item -> (JjsonString) item)
-                                        .map(item -> new File(item.original()))
-                                        .toList();
-                            } catch (JjsonException e) {
-                                logger.error("Failed file handler", e);
-                                return "";
-                            }
-                        }
-                    }, null);
-                    case IMAGE -> clipboard.setContents(new Transferable() {
-                        @Override
-                        public DataFlavor[] getTransferDataFlavors() {
-                            return new DataFlavor[]{DataFlavor.imageFlavor};
-                        }
-
-                        @Override
-                        public boolean isDataFlavorSupported(DataFlavor flavor) {
-                            return flavor.equals(DataFlavor.imageFlavor) && new File(clipboardEntity.getData()).exists();
-                        }
-
-                        @Override
-                        public Object getTransferData(DataFlavor flavor) {
-                            try {
-                                return ImageIO.read(new File(clipboardEntity.getData()));
-                            } catch (IOException e) {
-                                logger.error("Failed read image", e);
-                                return "";
-                            }
-                        }
-                    }, null);
-                }
-            } catch (Exception e) {
-                logger.error("Failed handler clipboard", e);
-            }
-
-            return null;
-        });
     }
 
     private synchronized void doingQueue() {
@@ -290,11 +228,14 @@ public final class ClipboardManager implements ClipboardOwner {
         }
     }
 
-    private String generateImageHash(byte[] imageBytes) throws NoSuchAlgorithmException {
-        return bytesToHex(MessageDigest.getInstance("SHA-256").digest(imageBytes));
+    private static String generateImageHash(BufferedImage image) throws NoSuchAlgorithmException, IOException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", outputStream);
+        byte[] byteArray = outputStream.toByteArray();
+        return bytesToHex(MessageDigest.getInstance("SHA-256").digest(byteArray));
     }
 
-    private String bytesToHex(byte[] hashBytes) {
+    private static String bytesToHex(byte[] hashBytes) {
         StringBuilder hexString = new StringBuilder();
         for (byte b : hashBytes) {
             hexString.append(String.format("%02x", b));
@@ -307,6 +248,86 @@ public final class ClipboardManager implements ClipboardOwner {
         if (!clipboardQueue.isEmpty()) {
             doingQueue();
         }
+    }
+
+    public static void setClipboard(ClipboardEntity clipboardEntity, boolean setLastData) {
+        ClipboardManagerApplication.getApp().getVertx().executeBlocking(() -> {
+
+            try {
+                if (clipboardEntity == null) {
+                    return null;
+                }
+
+                switch (clipboardEntity.getType()) {
+                    case STRING -> {
+                        if (setLastData) ClipboardManager.manager().lastData.setLast(clipboardEntity.getData(), ClipboardType.STRING);
+                        clipboard.setContents(new StringSelection(clipboardEntity.getData()), null);
+                    }
+                    case FILE -> clipboard.setContents(new Transferable() {
+                        @Override
+                        public DataFlavor[] getTransferDataFlavors() {
+                            return new DataFlavor[]{DataFlavor.javaFileListFlavor};
+                        }
+
+                        @Override
+                        public boolean isDataFlavorSupported(DataFlavor flavor) {
+                            return flavor.equals(DataFlavor.javaFileListFlavor);
+                        }
+
+                        @Override
+                        public Object getTransferData(DataFlavor flavor) {
+                            try {
+                                List<File> data = JjsonArray.ofString(clipboardEntity.getData()).stream()
+                                        .map(item -> (JjsonString) item)
+                                        .map(item -> new File(item.original()))
+                                        .toList();
+                                if (setLastData) ClipboardManager.manager().lastData.setLast(JjsonArray.ofCollection(data.stream().map(File::getAbsolutePath).toList()).encode(), ClipboardType.FILE);
+                                return data;
+                            } catch (JjsonException e) {
+                                logger.error("Failed file handler", e);
+                                if (setLastData) ClipboardManager.manager().lastData.setLast("", ClipboardType.STRING);
+                                return "";
+                            }
+                        }
+                    }, null);
+                    case IMAGE -> clipboard.setContents(new Transferable() {
+                        @Override
+                        public DataFlavor[] getTransferDataFlavors() {
+                            return new DataFlavor[]{DataFlavor.imageFlavor};
+                        }
+
+                        @Override
+                        public boolean isDataFlavorSupported(DataFlavor flavor) {
+                            return flavor.equals(DataFlavor.imageFlavor) && new File(clipboardEntity.getData()).exists();
+                        }
+
+                        @Override
+                        public Object getTransferData(DataFlavor flavor) {
+                            try {
+                                BufferedImage read = ImageIO.read(new File(clipboardEntity.getData()));
+                                try {
+                                    if (setLastData) ClipboardManager.manager().lastData.setLast(generateImageHash(read), ClipboardType.IMAGE);
+                                } catch (NoSuchAlgorithmException ignored) {
+                                }
+                                return read;
+                            } catch (IOException e) {
+                                logger.error("Failed read image", e);
+                                if (setLastData) ClipboardManager.manager().lastData.setLast("", ClipboardType.STRING);
+                                return "";
+                            }
+                        }
+                    }, null);
+                }
+            } catch (Exception e) {
+                logger.error("Failed handler clipboard", e);
+            }
+
+            return null;
+        });
+    }
+
+    public void clearLastData() {
+        lastData.clear();
     }
 
 }
