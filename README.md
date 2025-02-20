@@ -1,9 +1,7 @@
 # 📋 Clipboard Manager
 
-<div>
-    <img src="screenshots/1.png" alt="screenshot">
-    <img src="screenshots/2.png" alt="screenshot">
-</div>
+![Image 1](screenshots/1.png)
+![Image 2](screenshots/2.png)
 
 📝 A desktop application written in `Java 21` for managing clipboard content. The application listens to the clipboard, stores clipboard items in an SQLite database, and allows you to manage and organize clipboard entries based on content type `STRING`, `FILE`, `IMAGE`.
 
@@ -151,9 +149,7 @@ By default, the shortcut is set to **F7**, but it can be customized in the **ui_
 
 ## 💻 Technologies
 
-<div align="center">
-    <img src="https://user-images.githubusercontent.com/25181517/117201156-9a724800-adec-11eb-9a9d-3cd0f67da4bc.png" alt="Java"/>
-</div>
+![Java](screenshots/java.png)
 
 ## 📢 Spread the word!
 
